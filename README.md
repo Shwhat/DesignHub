@@ -1,6 +1,18 @@
 # DesignHub
 
-Local-only engineering wiki, issue tracker and bill of design, delivered as a single portable executable.
+Self-hosted engineering documentation, work tracking and bill of design.
+
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [docs/SPEC.md](docs/SPEC.md) | Product specification and release plan |
+| [docs/HANDOFF-data-model.md](docs/HANDOFF-data-model.md) | Data model work in progress |
+| [docs/HANDOFF-build.md](docs/HANDOFF-build.md) | Technical state, prototype details and build notes |
+
+## Prototype
+
+The code on `main` is a single-user prototype. The server version described in the specification replaces it.
 
 - Items (requirements, parts, assemblies, procedures, issues, pages) are markdown files with YAML frontmatter.
 - Every save is committed to a standard git repository inside the data folder.
