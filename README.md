@@ -7,7 +7,8 @@ Self-hosted engineering documentation, work tracking and bill of design.
 | Document | Purpose |
 |---|---|
 | [docs/SPEC.md](docs/SPEC.md) | Product specification and release plan |
-| [docs/HANDOFF-data-model.md](docs/HANDOFF-data-model.md) | Data model work in progress |
+| [docs/DATA-MODEL.md](docs/DATA-MODEL.md) | Data model: identification, links, revisions, storage and field lists |
+| [docs/HANDOFF-data-model.md](docs/HANDOFF-data-model.md) | Data model working notes |
 | [docs/HANDOFF-build.md](docs/HANDOFF-build.md) | Technical state, prototype details and build notes |
 
 ## Prototype
