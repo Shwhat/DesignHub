@@ -1,13 +1,24 @@
-# DesignHub Handoff: Building the Software
+# DesignHub Handoff
 
 Date: 2026-10-29
-Purpose: everything needed to start building DesignHub v1 in a new conversation.
+Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
-## Read first
+## Start here
 
-1. `docs/SPEC.md`: product specification, all decisions, v1/v2/v3 release plan.
-2. `docs/DATA-MODEL.md`: the complete data model. `docs/HANDOFF-screens.md` covers the next step, screen layouts.
-3. This document: technical state, prototype details and build notes.
+Paste this into the new chat:
+
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch docs/spec-v1 (PR #1), then docs/SPEC.md, docs/DATA-MODEL.md and docs/SCREENS.md. The spec, data model and screen layouts are complete. The next step is the v1 test plan. Start by asking me the test plan questions in the handoff doc.
+
+## Documents
+
+| Document | Contents | State |
+|---|---|---|
+| `docs/SPEC.md` | Product specification, decisions, v1/v2/v3 release plan | v0.2, complete |
+| `docs/DATA-MODEL.md` | Identification, links, revisions, storage, field lists | v0.1, complete |
+| `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.1, complete |
+| `docs/HANDOFF.md` | This document: rules, state, next steps, technical notes | Current |
+
+All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 
 ## Project rules
 
@@ -18,18 +29,74 @@ Purpose: everything needed to start building DesignHub v1 in a new conversation.
 - No Python anywhere in the product.
 - Answer questions simply, without extra unrequested actions.
 - Deliverable documents contain no tips or meta-commentary.
+- When reviewing a series of items, show progress as "N of M".
 - Work on branches. Devon reviews and merges into `main`.
 
 ## Order of work
 
-1. Devon reviews and merges PR #1 (spec and handoff docs).
-2. Finish the data model (topics 1 to 5 in the data model handoff). Record it as `docs/DATA-MODEL.md`.
-3. Screen layouts for: dashboard, page view and editor, part and assembly with Bill of Design, Work board, change order review.
-4. v1 test plan: what Devon will test and what "working" means.
-5. Proxmox host preparation instructions for Devon (VM, Docker, fixed IP).
-6. Build v1, feature by feature on branches, only when Devon says to build.
+| Step | State |
+|---|---|
+| 1. Specification | Complete |
+| 2. Data model | Complete |
+| 3. Screen layouts | Complete |
+| 4. v1 test plan: what Devon will test and what "working" means | Next |
+| 5. Proxmox host preparation instructions for Devon (VM, Docker, fixed IP) | To do |
+| 6. Build v1, feature by feature on branches, only when Devon says to build | To do |
+| Devon reviews and merges PR #1 | Any time |
 
-## Target architecture (from SPEC.md)
+## Key decisions (detail in SPEC.md, DATA-MODEL.md and SCREENS.md)
+
+**Platform**
+- Server version only: Docker Compose on a Proxmox VM, local network first, domain later.
+- Go backend, bundled frontend, no runtime dependence on the internet.
+- Engineering data and pages in git as markdown. Work items, change order records, users, comments, notifications, lists and audit log in PostgreSQL. Attachments in a file store referenced from git. InfluxDB in v3.
+
+**Identification**
+- Production parts and assemblies: 6-digit base plus 3-digit category suffix (100042-001). Suffixes: -000 layout, -0XX and -1XX piece part, -2XX assembly, -3XX harness, -4XX PCB, -5XX PCBA, -6XX internal electronic component, -9XX interface or make-on-assembly.
+- The next number is offered automatically. The user may change base and suffix if the full number is unused. The counter skips any base already used in any form.
+- Reference parts: 7-digit (1000042), convertible to production.
+- COTS parts: manufacturer code, period, order number (PXC.3031212). Manufacturer list in v1.
+- Everything else: PREFIX-NUMBER (REQ, PRC, DOC, PG, CO, SP, TSK, ISS, NCR, ACT, EPC).
+- Never-released drafts can be deleted; numbers are never reused.
+
+**Revisions and control**
+- Numeric revisions, first release 01. No revision before first release.
+- Drafts change freely. Release and every later revision go through a change order.
+- The owner starts a new revision when ready; the change order releases it.
+- Engineering statuses: Draft, In Review, Released, Superseded, Obsolete.
+
+**Organization and access**
+- Engineering items and change orders live in a company-wide library with a home space. Pages and work items belong to one space.
+- Each user has one library role and one role per space.
+- Any record can be locked to an access list; others see nothing.
+
+**Screens**
+- Top bar (search, notifications, profile menu) and left sidebar (Home, My Work, Library, Search, space switcher, page tree, Work entries).
+- Responsive for desktop, tablet and phone. Light and dark themes by user setting. Comfortable density.
+- Records share one layout: header with Actions menu, tabs, comment side panel, edit in place with autosaved drafts.
+- Sign-in: "Keep me signed in" lasts 1 day.
+
+## Test plan questions (ask first)
+
+1. Who tests v1: Devon only, or a small group?
+2. Test environment: the Proxmox VM, or a local machine first?
+3. Format: a checklist per screen and feature, or end-to-end scenarios (for example "create a part, add it to an assembly, release both through a change order")?
+4. What test data: the seed data set, or a realistic sample from the factory build-out?
+5. Pass criteria: every check must pass before v1 is accepted, or only must-have checks, with the rest logged as issues?
+6. Should the test plan include phone and tablet checks for every screen, or only key screens?
+
+## Open items
+
+| Item | Owner |
+|---|---|
+| Review and merge PR #1 | Devon |
+| Two-factor setup flow (SCREENS.md section 17) | To be defined |
+| Meaning of "major update" for the Home layout reset (SCREENS.md section 17) | To be defined |
+| Git implementation: extend `git.go` or adopt a full git library (branches, merges and tags are needed for change orders) | Decide before build |
+| Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
+| Mail server for email notifications (v2) | Devon |
+
+## Target architecture
 
 | Part | Choice |
 |---|---|
@@ -46,7 +113,7 @@ Setup must create and connect the databases automatically. Devon is new to Postg
 
 ## Current code on main (prototype)
 
-A single-user prototype written in Go 1.24 with Go standard library plus two vendored libraries. It proves the core ideas and is the starting point for the server version.
+A single-user prototype written in Go 1.24 with the Go standard library plus two vendored libraries. It proves the core ideas and is the starting point for the server version.
 
 | File | Contents |
 |---|---|
@@ -57,7 +124,7 @@ A single-user prototype written in Go 1.24 with Go standard library plus two ven
 
 ### Prototype features
 
-- Item types: requirement (REQ), part (PRT), assembly (ASM), procedure (PRC), issue (ISS), page (PG).
+- Item types: requirement (REQ), part (PRT), assembly (ASM), procedure (PRC), issue (ISS), page (PG). These IDs and the letter revisions predate the data model and will be replaced.
 - Statuses: Draft, In Review, Released, Obsolete.
 - Item file format:
 
@@ -94,7 +161,7 @@ Markdown body. [[PRT-0001]] links to an item.
 - Commits are never signed.
 - File history walks first parents from HEAD and compares blob IDs per path.
 - Reads loose objects only. If another git tool packs the repository, older history is reported as unavailable rather than failing.
-- No branches, merges or tags yet. Change orders need these. Decide in data model topic 4 whether to extend this implementation or adopt a full git library.
+- No branches, merges or tags yet. Change orders need these.
 
 ### What must change for the server version
 
@@ -116,7 +183,7 @@ These apply to Claude Code cloud sessions used so far:
 - golang.org/x modules are likely blocked, which is why go-git was not used (it depends on them). Check this again before choosing a git library or any dependency.
 - Vendor all dependencies (`go mod vendor`) so the repo builds offline.
 - npm registry is reachable, so frontend packages can be fetched and bundled.
-- Build commands (only when Devon says to build):
+- Build command (only when Devon says to build):
 
 ```
 CGO_ENABLED=0 go build -mod=vendor -trimpath -ldflags "-s -w" -o designhub .
@@ -144,12 +211,3 @@ These checks passed on the prototype and should keep passing, adapted, in v1:
 - Search finds text in item bodies.
 - `git log`, `git status` (clean) and `git fsck --strict` succeed on the data folder.
 - A request with a foreign Host header is refused.
-
-## Open items
-
-| Item | Owner |
-|---|---|
-| Review and merge PR #1 | Devon |
-| Data model topics 1 to 5 | Next conversation |
-| Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
-| Mail server for email notifications (v2) | Devon |
