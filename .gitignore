@@ -1,0 +1,4 @@
+*.exe
+designhub
+data/
+dist/
