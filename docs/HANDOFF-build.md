@@ -6,7 +6,7 @@ Purpose: everything needed to start building DesignHub v1 in a new conversation.
 ## Read first
 
 1. `docs/SPEC.md`: product specification, all decisions, v1/v2/v3 release plan.
-2. `docs/HANDOFF-data-model.md`: data model work in progress. The data model must be finished before v1 code starts.
+2. `docs/DATA-MODEL.md`: the complete data model. `docs/HANDOFF-screens.md` covers the next step, screen layouts.
 3. This document: technical state, prototype details and build notes.
 
 ## Project rules
