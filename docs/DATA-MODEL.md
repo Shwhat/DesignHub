@@ -40,9 +40,11 @@ This document defines the records DesignHub stores, how they are identified, how
 
 Format: 6-digit base number, dash, 3-digit suffix. Example: `100042-001`.
 
-- The base number is non-significant and assigned automatically from a single counter.
+- The base number is non-significant and offered automatically from a single counter.
 - The suffix is semi-significant. The first digit gives the category; the second and third digits are sequential and used as the creator sees fit.
-- A new item is assigned the next base number with suffix `-001`. The user may enter a different suffix following the rules below.
+- A new item is offered the next base number with suffix `-001`. The user may change the base number and the suffix. The full number (base and suffix) must not already be used or retired. The suffix follows the rules below.
+- The number is reserved when the item is created.
+- The counter skips any base number already used in any form, including retired numbers.
 
 | Suffix | Category | Has BOM | Notes |
 |---|---|---|---|
@@ -296,7 +298,7 @@ All common engineering item fields, plus:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| Item number | Text | Yes | Section 2. Never changes. |
+| Item number | Text | Yes | Section 2. Never changes after creation. |
 | Part kind | Choice | Yes | Production, Reference, COTS. M-State placeholder. |
 | Name | Text, max 50 | Yes | Shown in the drawing title block |
 | Description | Long text | No | Searchable |

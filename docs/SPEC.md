@@ -429,7 +429,7 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 ## 14. Security and audit
 
 - HTTPS for all access once a domain is configured. During local network testing, access uses the fixed IP address on the local network.
-- Session cookies are secure, HTTP-only and expire after inactivity.
+- Session cookies are secure, HTTP-only and expire after inactivity. "Keep me signed in" keeps a session for 1 day.
 - Protection against cross-site request forgery on every form and API call.
 - Rate limiting on sign-in.
 - Audit log of sign-ins, permission changes, approvals, releases, settings changes and data exports.
@@ -485,5 +485,5 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 | Domain name and HTTPS certificate | To be obtained. Required before Google sign-in. |
 | Mail server for email notifications | To be decided before version 2 |
 | Detailed data model (fields and relations per type) | Defined in [DATA-MODEL.md](DATA-MODEL.md) |
-| Screen layouts | Next step |
+| Screen layouts | Defined in [SCREENS.md](SCREENS.md) |
 | Test plan for version 1 | Next step |

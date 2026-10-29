@@ -27,7 +27,8 @@ Paste this into the new chat:
 | main | Go source of a single-user prototype. Will be reworked for the server version. |
 | PR #1 (branch docs/spec-v1) | docs/SPEC.md v0.2 and docs/DATA-MODEL.md v0.1. Awaiting Devon's review. |
 | Data model | Complete and fully reviewed. |
-| Next | Screen layouts, then a v1 test plan. |
+| Screen layouts | Complete. docs/SCREENS.md v0.1. Two-factor setup flow still to be defined. |
+| Next | v1 test plan. |
 
 ## Key decisions (detail in SPEC.md and DATA-MODEL.md)
 
