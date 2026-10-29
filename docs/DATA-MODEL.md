@@ -615,7 +615,7 @@ Initial list:
 
 | List | Initial values |
 |---|---|
-| Units of measure | Each, meter, foot, kilogram, liter |
+| Units of measure | Each, Set, Inch, Foot, Millimeter, Meter, Pound, Kilogram, Gallon, Liter, Square foot |
 | Commodity codes | None |
 | Requirement categories | Functional, Performance, Interface, Safety, Regulatory, Environmental |
 | Procedure types | Test, Inspection, Work instruction, Calibration, Maintenance |
@@ -630,19 +630,25 @@ Admin list with one additional field.
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | Value | Text | Yes | |
-| Expected on suffixes | Suffix list | No | A release warning is shown when an item with a listed suffix has no file with this role |
+| Expected on | Suffix list, COTS | No | A release warning is shown when a matching item has no file with this role |
 | Sort order | Number | Yes | |
 | Active | Yes/No | Yes | |
 
-| Role | Expected on suffixes |
+Initial roles: Drawing, 3D model, Schematic, BOM file, Datasheet, Native design files, Image, Other.
+
+Initial expected files:
+
+| Item | Expected files |
 |---|---|
-| Drawing | -0XX, -1XX, -2XX, -3XX, -4XX, -5XX |
-| 3D model | None |
-| Schematic | -3XX, -4XX, -5XX |
-| Datasheet | None |
-| Native design files | None |
-| Image | None |
-| Other | None |
+| -000 Layout | 3D model |
+| -0XX, -1XX Piece part | Drawing |
+| -2XX Assembly | Drawing |
+| -3XX Harness | Drawing, Schematic, 3D model |
+| -4XX PCB | Schematic, Drawing, BOM file |
+| -5XX PCBA | Schematic, Drawing, BOM file |
+| -6XX Internal electronic component | Schematic, Drawing |
+| -9XX Interface or make-on-assembly | None |
+| COTS parts | Datasheet |
 
 ## 8. Placeholders for later versions
 
