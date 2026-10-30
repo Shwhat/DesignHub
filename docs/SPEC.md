@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Document | DesignHub product specification |
-| Version | 0.1 (draft for review) |
-| Date | 2026-10-29 |
+| Version | 0.3 (draft for review) |
+| Date | 2026-10-30 |
 | Owner | Devon |
 | Status | Draft |
 
@@ -57,7 +57,7 @@ Initial use is product design, followed by the factory build-out. Both are first
 | Item | Value |
 |---|---|
 | Host | Proxmox |
-| Guest | Linux virtual machine |
+| Guest | Linux virtual machine with Docker installed |
 | Packaging | Docker Compose |
 | Initial network | Local network, fixed IP address |
 | Later network | Company domain name with HTTPS |
@@ -69,7 +69,7 @@ Initial use is product design, followed by the factory build-out. Both are first
 | `designhub` | Application server and web interface |
 | `postgres` | Application database |
 | `influxdb` | Time-series database (enabled in a later release) |
-| `proxy` | HTTPS termination in front of the application |
+| `proxy` | HTTPS termination in front of the application. Uses a self-signed certificate until a domain is configured. |
 
 Setup creates, configures and connects the databases automatically. The whole system starts and stops with a single command.
 
@@ -82,9 +82,16 @@ Setup creates, configures and connects the databases automatically. The whole sy
 | `influxdata` | InfluxDB data |
 | `backups` | Scheduled backup output |
 
-### 3.4 Updates
+### 3.4 Installation
 
-A new version is deployed by pulling a new application image and restarting the stack. Database schema changes are applied automatically on startup and recorded in the audit log.
+- Images are published to the GitHub container registry (`ghcr.io/shwhat/designhub`) on every push to the main branch, for amd64 and arm64.
+- Installation: save the published `docker-compose.yml` on the host and run `docker compose up -d`.
+- The first start generates the database password and the self-signed certificate automatically.
+- The first Super Admin is created with a setup command run on the host, which asks for the password in the terminal. The password is never stored in a file or environment variable.
+
+### 3.5 Updates
+
+A new version is deployed with `docker compose pull` and `docker compose up -d`. Database schema changes are applied automatically on startup and recorded in the audit log.
 
 ## 4. Architecture and data storage
 
@@ -105,18 +112,20 @@ Controlled engineering data is stored in git. Day-to-day activity and applicatio
 | Requirements, parts, assemblies, Bill of Design | Git | Revision controlled and released through change orders |
 | Procedures, work instructions | Git | Revision controlled |
 | Pages | Git | Versioned and portable |
-| Change orders | Git | Describe changes to controlled data |
-| Attachments | Git (large files tracked separately) | Versioned with the item they belong to |
+| Edits made under a change order | Git, on the change order's branch | Reviewed and released as one set |
+| Change order records (state, approvals, signatures) | PostgreSQL | Workflow and signature data |
+| Attachments | File store, referenced from git by checksum | Tied to the revision they belong to |
 | Work items (tasks, issues, NCRs, actions, epics) | PostgreSQL | Frequent updates by many concurrent users |
 | Sprints, milestones, time entries | PostgreSQL | Activity data |
 | Comments, mentions, watchers, notifications | PostgreSQL | High volume |
 | Users, roles, permissions, sessions | PostgreSQL | Application data |
+| Manufacturer list and other Admin lists | PostgreSQL | Lookup lists |
 | Audit log | PostgreSQL | Append-only record |
 | Search index and link graph | PostgreSQL | Derived from git, rebuildable at any time |
 
 ### 4.3 How the two stores connect
 
-- Every record has a permanent ID (for example `PRT-0042`, `NCR-0007`). Links between records always use IDs.
+- Every record has a permanent ID (for example `100042-001`, `PXC.3031212`, `NCR-0007`). Links between records always use IDs. Identification, links, revisions and fields are defined in [DATA-MODEL.md](DATA-MODEL.md).
 - Work items reference engineering items by ID. The engineering item's page shows the linked work items.
 - The search index and link graph are rebuilt from git on startup and updated on every save.
 
@@ -127,7 +136,7 @@ Controlled engineering data is stored in git. Day-to-day activity and applicatio
 
 ### 4.5 Data export
 
-Work items, comments and time entries can be exported to markdown and CSV on demand and on a schedule, so no data is held only in the database.
+Work items, change order records, comments and time entries can be exported to markdown and CSV on demand and on a schedule, so no data is held only in the database.
 
 ## 5. Users, sign-in and roles
 
@@ -139,7 +148,7 @@ Work items, comments and time entries can be exported to markdown and CSV on dem
 | Google sign-in | Available once DesignHub has a fixed HTTPS address |
 
 - Passwords are hashed with Argon2id.
-- Optional two-factor authentication with an authenticator app (TOTP).
+- Two-factor authentication is provided through Google sign-in (version 2). Local accounts use password sign-in.
 - Google sign-in is restricted to the company's Google Workspace domain and, optionally, to specific Google groups.
 - An account is created automatically on first Google sign-in with a default role set by an Admin.
 - A disabled Google account can no longer sign in.
@@ -161,7 +170,8 @@ Work items, comments and time entries can be exported to markdown and CSV on dem
 
 ### 5.3 Role rules
 
-- Roles are assigned per space or project. One user can hold different roles in different spaces.
+- Each user holds one library role, which controls engineering items and change orders company-wide, and may hold one role in each space, which controls that space's pages and work items.
+- Individual records can be locked to an access list. Users not on the list do not see the record.
 - Vendors and Contractors are linked to a company record and see only records linked to that company or their assigned projects.
 - Accounts for Vendors and Contractors can have an expiry date.
 - Admins can create custom roles by copying an existing role and adjusting its permissions.
@@ -173,6 +183,7 @@ Work items, comments and time entries can be exported to markdown and CSV on dem
 ### 6.1 Spaces
 
 - A space is a top-level area with its own permissions, home page and page tree.
+- Pages and work items belong to exactly one space. Engineering items and change orders live in a company-wide library and carry a home space for filtering and ownership.
 - Each space has a permanent internal ID (for example `SP-0001`) and a display name. Renaming a space changes only the display name; links, permissions and storage use the ID.
 - Initial space: **Factory Buildout**.
 
@@ -240,11 +251,11 @@ Pages can embed blocks that always display current data:
 
 ### 7.1 Item types
 
-| Type | ID prefix | Purpose |
+| Type | Identifier | Purpose |
 |---|---|---|
 | Requirement | REQ | A requirement the design must meet |
-| Part | PRT | A purchased or manufactured component |
-| Assembly | ASM | An item made from parts and sub-assemblies |
+| Part | `100042-001` (production), `1000042` (reference), `PXC.3031212` (purchased) | A purchased or manufactured component |
+| Assembly | `100042-201` (suffix -2XX, -3XX harness, -5XX PCBA) | An item made from parts and sub-assemblies |
 | Procedure | PRC | Test, inspection or work procedure |
 | Document | DOC | Drawing, specification or other controlled document |
 | Supplier | SUP | A company that supplies parts or services |
@@ -255,13 +266,17 @@ Pages can embed blocks that always display current data:
 
 ### 7.2 Common fields
 
-ID, type, title, revision, status, owner, space, labels, links, description (markdown body), attachments.
+ID, type, title, revision, status, owner, assignee, home space, labels, links, description (markdown body), attachments.
 
-Statuses: Draft, In Review, Released, Obsolete.
+Revisions are numeric (01, 02, 03). A new item has no revision until it is first released.
+
+Statuses: Draft, In Review, Released, Superseded, Obsolete.
+
+Full field lists are in [DATA-MODEL.md](DATA-MODEL.md).
 
 ### 7.3 Part attributes
 
-Manufacturer, manufacturer part number, approved alternates, supplier, unit cost, lead time, unit of measure, lifecycle status (Active, Not Recommended for New Design, Obsolete).
+Part kind (production, reference, purchased), unit of measure, tracking (serial, lot or none), commodity code. Purchased parts add manufacturer (from the manufacturer list), order number, type number, approved alternates, unit cost, lead time and lifecycle status (Active, Not Recommended for New Design, Obsolete).
 
 ### 7.4 Bill of Design
 
@@ -274,13 +289,15 @@ Manufacturer, manufacturer part number, approved alternates, supplier, unit cost
 
 ### 7.5 Traceability
 
-- Relation types: satisfies (design to requirement), verifies (procedure to requirement), affects, fixed by, relates to.
+- Relation types: satisfies (design to requirement), verifies (procedure to requirement), derived from (requirement to requirement), affects, found on, fixed by, relates to.
 - Traceability view showing each requirement's design and verification coverage.
 
 ### 7.6 Attachments
 
-- Files of any type stored with the item and versioned with it.
-- Large files are tracked by reference so the repository stays fast.
+- Files of any type, attached to a specific revision. A released revision's files never change.
+- Files are kept in a file store on the server and referenced from git by checksum, so the repository stays fast.
+- Each file has a role (for example Drawing or Schematic). A missing expected role produces a warning at release.
+- Vendor download of native design files is set per item.
 
 ### 7.7 Manufacturing records
 
@@ -298,7 +315,9 @@ Manufacturer, manufacturer part number, approved alternates, supplier, unit cost
 
 - A change order describes a reason for change, the affected items and the proposed changes.
 - Opening a change order creates a working branch in the engineering repository. Edits to affected items are made on that branch.
-- Released items and controlled pages change only through a change order.
+- Draft items change freely. Released items and controlled pages change only through a change order.
+- The owner starts a new draft revision of a released item when ready. Starting a revision does not require a change order; releasing it does.
+- The change order record (state, approvals and signatures) is stored in PostgreSQL.
 
 ### 8.2 States
 
@@ -310,13 +329,15 @@ Draft, In Review, Approved, Released, Rejected, Cancelled.
 - Approvers are assigned per change order. Users whose role permits it can add or remove approvers.
 - Each approval or rejection records the approver, time and comment.
 - An approver confirms their decision by re-entering their password (electronic signature).
+- Every assigned approver must approve. A single rejection rejects the change order.
 - The author cannot be the only approver.
+- When a change order is rejected or cancelled, its affected items keep their current status. An Admin setting can instead return them to Draft.
 - A change order cannot be approved while validation errors exist on the affected items.
 
 ### 8.4 Release
 
 - A Release Authority releases an approved change order.
-- Release merges the changes, increments the revision of each affected item, and creates a signed baseline tag.
+- Release merges the changes, makes each affected draft revision the released revision, marks the previous revision Superseded, and creates a signed baseline tag.
 - Any baseline can be viewed exactly as released and compared with any other baseline.
 
 ### 8.5 Deviations and waivers
@@ -417,7 +438,8 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 ## 14. Security and audit
 
 - HTTPS for all access once a domain is configured. During local network testing, access uses the fixed IP address on the local network.
-- Session cookies are secure, HTTP-only and expire after inactivity.
+- Session cookies are secure, HTTP-only and expire after 30 minutes of inactivity. "Keep me signed in" keeps a session for 1 day.
+- An allowed-addresses setting limits the host names and IP addresses the application answers to.
 - Protection against cross-site request forgery on every form and API call.
 - Rate limiting on sign-in.
 - Audit log of sign-ins, permission changes, approvals, releases, settings changes and data exports.
@@ -437,10 +459,10 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 | Area | Included |
 |---|---|
 | Deployment | Docker Compose on Proxmox, local network access |
-| Sign-in | Local accounts, two-factor authentication |
+| Sign-in | Local accounts |
 | Roles | Super Admin, Admin, Release Authority, Approver, Editor, Contributor, Viewer |
 | Spaces and Pages | Spaces, page tree, all four editing modes, Bill of Design and work list blocks, comments, history, controlled pages |
-| Engineering data | Requirements, parts, assemblies, procedures, documents, Bill of Design, where-used, traceability, validation, attachments |
+| Engineering data | Requirements, parts, assemblies, procedures, documents, Bill of Design, where-used, traceability, validation, attachments, manufacturer list |
 | Change control | Change orders with approvals, electronic signature, release and baselines |
 | Work | Tasks, issues, NCRs, actions, epics; board, list and My Work views; default and NCR workflows |
 | Notifications | In-app inbox and watchers |
@@ -449,7 +471,7 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 
 ### 16.2 Version 2
 
-- Google sign-in (once the domain is in place)
+- Google sign-in with two-factor authentication (once the domain is in place)
 - Vendor and Contractor roles with company scoping and expiry
 - Custom roles and editable workflows
 - Sprints, milestones, timeline view and time tracking
@@ -472,6 +494,7 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 |---|---|
 | Domain name and HTTPS certificate | To be obtained. Required before Google sign-in. |
 | Mail server for email notifications | To be decided before version 2 |
-| Detailed data model (fields and relations per type) | Next step |
-| Screen layouts | Next step |
-| Test plan for version 1 | Next step |
+| Detailed data model (fields and relations per type) | Defined in [DATA-MODEL.md](DATA-MODEL.md) |
+| Screen layouts | Defined in [SCREENS.md](SCREENS.md) |
+| Test plan for version 1 | Defined in [TEST-PLAN.md](TEST-PLAN.md) |
+| Frontend framework and editor | Defined in [FRONTEND.md](FRONTEND.md) |

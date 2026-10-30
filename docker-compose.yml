@@ -1,0 +1,106 @@
+# DesignHub
+#
+# Save this file on a Docker host and run:  docker compose up -d
+# Then create the first Super Admin:        docker compose exec -it designhub designhub setup-admin
+# Open https://<host address> in a browser.
+# Update:                                   docker compose pull && docker compose up -d
+
+name: designhub
+
+services:
+  # Creates the database password, TLS certificate and baseline signing key
+  # on first start. Existing files are kept.
+  init:
+    image: ghcr.io/shwhat/designhub:latest
+    command: ["init-secrets"]
+    user: "0:0"
+    volumes:
+      - secrets:/secrets
+    restart: "no"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: designhub
+      POSTGRES_USER: designhub
+      POSTGRES_PASSWORD_FILE: /secrets/db_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - secrets:/secrets:ro
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U designhub -d designhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  designhub:
+    image: ghcr.io/shwhat/designhub:latest
+    restart: unless-stopped
+    environment:
+      DESIGNHUB_DB_HOST: postgres
+      # auto marks the session cookie secure for requests that arrive over HTTPS
+      DESIGNHUB_SECURE_COOKIE: auto
+      TZ: America/Los_Angeles
+    volumes:
+      - repo:/data
+      - backups:/backups
+      - secrets:/secrets:ro
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - secrets:/secrets:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - designhub
+
+configs:
+  caddyfile:
+    content: |
+      {
+      	admin off
+      	auto_https disable_redirects
+      }
+
+      # Local network: self-signed certificate created on first start.
+      # With a domain, replace ":443" with the domain name and delete the
+      # tls line; the proxy then obtains a trusted certificate itself.
+      :443 {
+      	tls /secrets/tls.crt /secrets/tls.key
+      	encode zstd gzip
+      	request_body {
+      		max_size 600MB
+      	}
+      	reverse_proxy designhub:8080 {
+      		flush_interval -1
+      	}
+      }
+
+      :80 {
+      	redir https://{host}{uri} permanent
+      }
+
+volumes:
+  repo:
+  pgdata:
+  backups:
+  secrets:
+  caddy_data:
+  caddy_config:
