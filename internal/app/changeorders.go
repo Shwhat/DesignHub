@@ -1448,6 +1448,31 @@ func (a *App) ReleaseCO(ctx context.Context, u *User, ip, coID, comment string) 
 	return nil
 }
 
+// apiCOHistory lists the audit entries of a change order.
+func (a *App) apiCOHistory(w http.ResponseWriter, r *http.Request) error {
+	u := userFrom(r)
+	ctx := r.Context()
+	c, err := a.coForUser(ctx, u, r.PathValue("id"))
+	if err != nil {
+		return err
+	}
+	rows, err := a.DB.Query(ctx, `SELECT id, at, username, action, record_id, detail, ip FROM audit_log WHERE record_id = $1 ORDER BY id DESC LIMIT 500`, c.ID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	out := []auditEntry{}
+	for rows.Next() {
+		var e auditEntry
+		if err := rows.Scan(&e.ID, &e.At, &e.Username, &e.Action, &e.RecordID, &e.Detail, &e.IP); err != nil {
+			return err
+		}
+		e.IP = ""
+		out = append(out, e)
+	}
+	return ok(w, out)
+}
+
 // ---------------------------------------------------------------------------
 // Baselines
 

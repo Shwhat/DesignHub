@@ -82,6 +82,7 @@ func (a *App) routesContent(api func(string, handlerFunc)) {
 	api("POST /api/change-orders/{id}/decision", a.apiDecideCO)
 	api("POST /api/change-orders/{id}/release", a.apiReleaseCO)
 	api("POST /api/change-orders/{id}/cancel", a.apiCancelCO)
+	api("GET /api/change-orders/{id}/history", a.apiCOHistory)
 	api("GET /api/baselines", a.apiBaselines)
 	api("GET /api/baselines/{co}", a.apiBaseline)
 	api("GET /api/admin/signing-key", a.apiSigningKey)

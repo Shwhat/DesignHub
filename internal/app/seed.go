@@ -188,7 +188,7 @@ func (s *seeder) run(pw string) (err error) {
 		return id
 	}
 	pg2 := page("Control panel overview", "", "General", "no",
-		"Overview of the control panel build.\n\n```bom 100004-201\n```\n\nOpen nonconformances on the DIN rail subassembly:\n\n```work type=ncr item=100003-201\n```\n")
+		"Overview of the control panel build.\n\n```bom\n100004-201\n```\n\nOpen nonconformances on the DIN rail subassembly:\n\n```work\ntype=ncr item=100003-201\n```\n")
 	pg3 := page("Kickoff meeting notes", pg2, "Meeting notes", "no", "Attendees: Editor One, Editor Two.\n\nAgreed the panel layout.\n")
 	s.editPage(pg3, "Attendees: Editor One, Editor Two, Contributor One.\n\nAgreed the panel layout and the enclosure size.\n", "Add attendee and decision")
 	pg4 := page("Panel build standard", "", "General", "yes", "All panels are built to the electrical design standard DOC-0001.\n")

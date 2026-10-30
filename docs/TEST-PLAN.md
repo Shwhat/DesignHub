@@ -255,7 +255,7 @@ Seed user names (`editor1`, `appr2` and so on), records and expected values are 
 | CO-15 | Obsolete PXC.3031212 through a change order | PXC.3031212 status Obsolete. Where-used shows it remains in 100003-201 rev 01. | Must |
 | CO-16 | Cancel a change order in Draft | State Cancelled. Affected items keep their earlier status. | Should |
 | CO-17 | Open the audit log | Approvals, rejections and releases from CO-09 to CO-15 listed | Must |
-| CO-18 | On the VM, run `git log`, `git status`, `git tag` and `git fsck --strict` on the engineering repository | All succeed. Status is clean. One tag per released change order. | Must |
+| CO-18 | On the VM, run `git log`, `git tag` and `git fsck --strict` on the engineering repository (a bare repository) | All succeed. One signed baseline tag per released change order. | Must |
 
 ### 7.8 Spaces and pages (PAG)
 
@@ -489,7 +489,7 @@ The prototype checks from HANDOFF.md, adapted for version 1.
 | Released assembly containing a Draft part is an error | CO-06 |
 | A BOM cycle is detected without hanging | ASM-10 |
 | Search finds text in item bodies | SRC-03 |
-| `git log`, `git status` and `git fsck --strict` succeed | CO-18 |
+| `git log`, `git status` and `git fsck --strict` succeed (the repository is bare, so `git status` is replaced by `git tag`) | CO-18 |
 | A request with a foreign Host header is refused | SEC-01 |
 
 ## 11. Open items

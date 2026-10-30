@@ -7,7 +7,7 @@ Purpose: everything needed to continue DesignHub in a new conversation. This doc
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch docs/spec-v1 (PR #1), then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md and docs/TEST-PLAN.md. The spec, data model, screen layouts and v1 test plan are complete. The next step is the Proxmox host preparation instructions.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch v1-build, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is built on v1-build. The next step is testing with TEST-PLAN.md.
 
 ## Documents
 
@@ -17,9 +17,10 @@ Paste this into the new chat:
 | `docs/DATA-MODEL.md` | Identification, links, revisions, storage, field lists | v0.1, complete |
 | `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.1, complete |
 | `docs/TEST-PLAN.md` | v1 test plan: checklist, phone and tablet checks, scenarios, seed data | v0.1, complete |
+| `docs/FRONTEND.md` | Frontend framework and editor selection | v0.1, complete |
 | `docs/HANDOFF.md` | This document: rules, state, next steps, technical notes | Current |
 
-All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
+All documents and the v1 code are on branch `v1-build`.
 
 ## Project rules
 
@@ -42,8 +43,8 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 | 3. Screen layouts | Complete |
 | 4. v1 test plan: what Devon will test and what "working" means | Complete |
 | 5. Proxmox host preparation | Not needed. DesignHub installs on an existing Docker host like OpenSchem. |
-| 6. Build v1 on branch `v1-build`, all nine parts, one commit per part, one pull request at the end | In progress |
-| Devon reviews and merges PR #1 | Any time |
+| 6. Build v1 on branch `v1-build`, one pull request at the end | Complete |
+| 7. Devon reviews and merges `v1-build`, installs and runs TEST-PLAN.md | Next |
 
 ## Key decisions (detail in SPEC.md, DATA-MODEL.md and SCREENS.md)
 
@@ -92,7 +93,7 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 
 | Item | Owner |
 |---|---|
-| Review and merge PR #1 | Devon |
+| Review and merge the `v1-build` pull request | Devon |
 | Meaning of "major update" for the Home layout reset (SCREENS.md section 17) | To be defined |
 | Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
 | Mail server for email notifications (v2) | Devon |
@@ -114,118 +115,61 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 | Repository | Public |
 | Frontend | Svelte 5, Vite, Milkdown and CodeMirror 6 (FRONTEND.md) |
 
-## Target architecture
+## Architecture
 
 | Part | Choice |
 |---|---|
-| Backend | Go, single binary, JSON API plus server-rendered or bundled web UI |
-| Frontend | Bundled assets only, no CDN. Markdown editor supporting Visual, Split, Source and Preview toggle modes, all writing the same markdown |
-| Engineering data | Markdown files with YAML frontmatter in a git repository on a Docker volume |
-| App data | PostgreSQL |
-| Time-series | InfluxDB (v3 of the release plan), read and write |
-| Packaging | Docker Compose: designhub, postgres, influxdb, proxy (HTTPS) |
-| Host | Proxmox VM, local network first, company domain later |
+| Backend | Go 1.24, single binary, JSON API, frontend embedded in the binary |
+| Frontend | Svelte 5 and TypeScript built with Vite; Milkdown (Visual) and CodeMirror 6 (Source, Split, Preview toggle). Bundled assets only. |
+| Engineering data | Markdown files with YAML frontmatter in a bare git repository (go-git v5) on the `repo` volume. Change orders on `co/CO-NNNN` branches; releases merge to `main` and create signed `baseline/CO-NNNN` tags. |
+| App data | PostgreSQL 17 (pgx v5) |
+| Time-series | InfluxDB in v3 of the release plan |
+| Packaging | Docker Compose: `init` (secrets), `designhub`, `postgres`, `proxy` (Caddy, self-signed HTTPS) |
+| Images | `ghcr.io/shwhat/designhub`, amd64 and arm64, published by GitHub Actions on every push to `main` |
 | Sign-in | Local accounts with Argon2id in v1; Google sign-in with two-factor in v2 once a domain with HTTPS exists |
 
-Setup must create and connect the databases automatically. Devon is new to PostgreSQL and InfluxDB.
+## Current code on branch `v1-build`
 
-## Current code on main (prototype)
+All nine build parts are implemented: server foundation, sign-in and admin, spaces and pages, engineering items, Bill of Design, change orders, work and NCRs, search and notifications, backup and restore.
 
-A single-user prototype written in Go 1.24 with the Go standard library plus two vendored libraries. It proves the core ideas and is the starting point for the server version.
-
-| File | Contents |
+| Path | Contents |
 |---|---|
-| `main.go` | HTTP server on 127.0.0.1, server-rendered HTML pages, handlers, line diff, browser launch |
-| `store.go` | Item parsing (YAML frontmatter), loading, links, backlinks, BOM rollup, validation, ID allocation, seed data |
-| `git.go` | Minimal git implementation using only the standard library |
-| `vendor/` | goldmark v1.7.4 (markdown), gopkg.in/yaml.v3 v3.0.1 |
+| `cmd/designhub/` | Commands: `serve`, `init-secrets`, `setup-admin`, `seed`, `backup`, `restore`, `backups`, `healthcheck`, `version` |
+| `internal/app/` | HTTP API and business rules: sessions, CSRF, permissions, record locking, items and numbering, BOM, pages, change orders and signatures, work items and NCR workflow, notifications, live updates (Server-Sent Events), search, audit log, backups, scheduler, seed data |
+| `internal/model/` | Item format, identifiers, BOM rollup, validation |
+| `internal/repo/` | Git repository: commits, branches, merges, signed tags, history |
+| `internal/db/` | Connection and migrations (`migrations/0001_schema.sql`, `0002_initial_data.sql`) |
+| `internal/auth/`, `internal/config/`, `internal/secrets/` | Password hashing, environment settings, generated secrets |
+| `web/` | Svelte frontend: `src/pages/` one file per screen, `src/components/` shared parts, `src/lib/` API client, router and state |
+| `Dockerfile`, `docker-compose.yml`, `.github/workflows/docker.yml` | Image, deployment and CI |
 
-### Prototype features
+### Verification done in the build session
 
-- Item types: requirement (REQ), part (PRT), assembly (ASM), procedure (PRC), issue (ISS), page (PG). These IDs and the letter revisions predate the data model and will be replaced.
-- Statuses: Draft, In Review, Released, Obsolete.
-- Item file format:
+- `go vet` clean; Go tests pass against PostgreSQL (`internal/app`, `internal/model`, `internal/repo`).
+- Frontend type-check has no errors; production build succeeds.
+- Seed data loaded on a local server matches TEST-PLAN.md Appendix A: next production number 100008-001, flat total of 100001-001 in 100004-201 is 10, traceability coverage, My Work order, mention notification.
+- Access checks: locked DOC-0002 and SP-0002 pages return not found for `editor2`; locked BOM line hidden; Viewer edits refused; missing CSRF token refused; foreign Host refused (421) once Allowed addresses is set.
+- CO-0002 approved with password signature and released: 100002-001 rev 02 Released, rev 01 Superseded, signed baseline tag, `git fsck --strict` passes.
+- Backup, then restore of database, repository and attachments.
+- Key screens load in headless Chromium on desktop and phone width with no browser errors.
 
-```
----
-id: ASM-0001
-type: assembly
-title: Motor control panel
-rev: A
-status: Draft
-owner: devon
-links:
-  satisfies: [REQ-0001]
-bom:
-  - {part: PRT-0001, qty: 2, ref: K1 K2}
----
-Markdown body. [[PRT-0001]] links to an item.
-```
+### Next steps
 
-- A fenced block with info string `bom ASM-0001` embeds a live Bill of Design table in a page.
-- Multi-level BOM with extended quantities, flattened parts list, where-used.
-- Traceability view (satisfies, verifies) with coverage status.
-- Validator: missing fields, unknown type or status, ID prefix mismatch, broken links, BOM cycles, non-numeric quantities, Released assembly containing non-released items.
-- Browser editor (raw text area) with change note. Every save is a git commit attributed to the OS user.
-- Edit conflict detection: the editor carries a hash of the file as opened; a save is refused with HTTP 409 if the file changed since.
-- History per item with a line-by-line diff of each version.
-- Full-text search across ID, title and body.
-- Security: binds to 127.0.0.1 only, rejects requests whose Host is not 127.0.0.1 or localhost, rejects cross-origin POSTs, strict Content-Security-Policy, markdown rendered with raw HTML disabled.
-
-### git.go details
-
-- Writes loose objects (zlib), trees, commits, the branch ref and a version 2 index. Plain git reports a clean status and `git fsck --strict` passes on the result.
-- Each commit snapshots every file in the data folder except `.git`.
-- Commits are never signed.
-- File history walks first parents from HEAD and compares blob IDs per path.
-- Reads loose objects only. If another git tool packs the repository, older history is reported as unavailable rather than failing.
-- No branches, merges or tags yet. Change orders need these.
-
-### What must change for the server version
-
-- Remove the 127.0.0.1 binding and the Host header restriction; bind to all interfaces inside the container behind the proxy, with an allowed-hosts setting.
-- Remove browser launch and the console prompts.
-- Replace OS user attribution with signed-in DesignHub users.
-- Add PostgreSQL, accounts, roles, sessions and CSRF protection.
-- Replace the raw text area with the bundled multi-mode editor.
-- Update README: the prototype README states no outbound network calls. The product rule is now "no dependence on the internet; optional online services allowed."
-- Data folder becomes a Docker volume.
+1. Devon reviews the `v1-build` pull request and merges it into `main`. GitHub Actions then publishes the image.
+2. Devon installs on the Docker host with the README steps and runs TEST-PLAN.md.
+3. Failures are logged as GitHub issues with label `v1-test` and fixed on branches.
 
 ## Build environment notes
 
-These apply to Claude Code cloud sessions used so far:
+These apply to Claude Code cloud sessions:
 
-- Go 1.24 is preinstalled.
-- proxy.golang.org is blocked (HTTP 403). Fetching modules with `GOPROXY=direct GOSUMDB=off` works for modules hosted on GitHub.
-- gopkg.in is blocked. Workaround used: clone the GitHub source repo and use a `replace` directive, then vendor. The replace was removed before committing; the vendored copy is what builds.
-- golang.org/x modules are likely blocked, which is why go-git was not used (it depends on them). Check this again before choosing a git library or any dependency.
-- Vendor all dependencies (`go mod vendor`) so the repo builds offline.
-- npm registry is reachable, so frontend packages can be fetched and bundled.
-- Build command (only when Devon says to build):
+- Go 1.24, Node.js 22 and PostgreSQL 16 are available. Start PostgreSQL with `pg_ctlcluster 16 main start` for the Go tests (`DESIGNHUB_TEST_DATABASE_URL`).
+- proxy.golang.org is blocked. All Go dependencies, including golang.org/x modules, are vendored; build with `-mod=vendor`.
+- The npm registry is reachable. Docker is not available in the session, so images are built by GitHub Actions.
+- Playwright browser downloads are blocked; the `@sparticuz/chromium` npm package provides a headless Chromium for screen checks.
+- `setup-admin`, `seed` and `restore` require an interactive terminal.
 
 ```
-CGO_ENABLED=0 go build -mod=vendor -trimpath -ldflags "-s -w" -o designhub .
+cd web && npm ci && npm run build && cd ..
+CGO_ENABLED=0 go build -mod=vendor -trimpath -ldflags "-s -w" -o designhub ./cmd/designhub
 ```
-
-## Prototype acceptance checks
-
-These checks passed on the prototype and should keep passing, adapted, in v1:
-
-- Every page returns 200; unknown item returns 404.
-- Page with an embedded BOM shows the BOM table and flattened parts.
-- Extended quantity is correct for a multi-quantity line.
-- Where-used on a part lists its parent assembly.
-- History shows the initial commit and each later change with its note and author.
-- Traceability flags a requirement with no verification as "No test" and shows complete coverage correctly.
-- Seed data validates with no errors.
-- Creating an item allocates the next ID and opens the editor.
-- Validator reports a broken link.
-- History diff shows added and removed lines.
-- A stale save is rejected with 409 and the first save is kept.
-- Changing an item's ID in the editor is rejected.
-- A file without frontmatter is rejected.
-- Release rule: a Released assembly containing a Draft part is an error; with all children Released, no error.
-- A BOM cycle is detected without hanging.
-- Search finds text in item bodies.
-- `git log`, `git status` (clean) and `git fsck --strict` succeed on the data folder.
-- A request with a foreign Host header is refused.

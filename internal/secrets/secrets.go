@@ -4,6 +4,7 @@
 package secrets
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -17,7 +18,14 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
+
+// AppUID is the user the application container runs as.
+const AppUID = 65532
 
 // Init creates any missing secret files in dir and reports what it created.
 func Init(dir string) ([]string, error) {
@@ -50,7 +58,42 @@ func Init(dir string) ([]string, error) {
 		}
 		created = append(created, "self-signed TLS certificate")
 	}
+	sk := filepath.Join(dir, "signing.asc")
+	if !exists(sk) {
+		b, err := signingKey()
+		if err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(sk, b, 0o600); err != nil {
+			return nil, err
+		}
+		// Only the application reads the baseline signing key.
+		if os.Geteuid() == 0 {
+			os.Chown(sk, AppUID, AppUID)
+		}
+		created = append(created, "baseline signing key")
+	}
 	return created, nil
+}
+
+// signingKey creates an OpenPGP key used to sign baseline tags.
+func signingKey() ([]byte, error) {
+	e, err := openpgp.NewEntity("DesignHub Baselines", "", "baselines@designhub.local", &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA})
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	w, err := armor.Encode(&buf, openpgp.PrivateKeyType, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := e.SerializePrivate(w, nil); err != nil {
+		return nil, err
+	}
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func selfSigned() (certPEM, keyPEM []byte, err error) {
