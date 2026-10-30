@@ -486,4 +486,4 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 | Mail server for email notifications | To be decided before version 2 |
 | Detailed data model (fields and relations per type) | Defined in [DATA-MODEL.md](DATA-MODEL.md) |
 | Screen layouts | Defined in [SCREENS.md](SCREENS.md) |
-| Test plan for version 1 | Next step |
+| Test plan for version 1 | Defined in [TEST-PLAN.md](TEST-PLAN.md) |

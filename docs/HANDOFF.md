@@ -1,13 +1,13 @@
 # DesignHub Handoff
 
-Date: 2026-10-29
+Date: 2026-10-30
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch docs/spec-v1 (PR #1), then docs/SPEC.md, docs/DATA-MODEL.md and docs/SCREENS.md. The spec, data model and screen layouts are complete. The next step is the v1 test plan. Start by asking me the test plan questions in the handoff doc.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch docs/spec-v1 (PR #1), then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md and docs/TEST-PLAN.md. The spec, data model, screen layouts and v1 test plan are complete. The next step is the Proxmox host preparation instructions.
 
 ## Documents
 
@@ -16,6 +16,7 @@ Paste this into the new chat:
 | `docs/SPEC.md` | Product specification, decisions, v1/v2/v3 release plan | v0.2, complete |
 | `docs/DATA-MODEL.md` | Identification, links, revisions, storage, field lists | v0.1, complete |
 | `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.1, complete |
+| `docs/TEST-PLAN.md` | v1 test plan: checklist, phone and tablet checks, scenarios, seed data | v0.1, complete |
 | `docs/HANDOFF.md` | This document: rules, state, next steps, technical notes | Current |
 
 All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
@@ -39,8 +40,8 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 | 1. Specification | Complete |
 | 2. Data model | Complete |
 | 3. Screen layouts | Complete |
-| 4. v1 test plan: what Devon will test and what "working" means | Next |
-| 5. Proxmox host preparation instructions for Devon (VM, Docker, fixed IP) | To do |
+| 4. v1 test plan: what Devon will test and what "working" means | Complete |
+| 5. Proxmox host preparation instructions for Devon (VM, fixed IP; Docker is already installed on the VM) | Next |
 | 6. Build v1, feature by feature on branches, only when Devon says to build | To do |
 | Devon reviews and merges PR #1 | Any time |
 
@@ -76,14 +77,16 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 - Records share one layout: header with Actions menu, tabs, comment side panel, edit in place with autosaved drafts.
 - Sign-in: "Keep me signed in" lasts 1 day.
 
-## Test plan questions (ask first)
+## Test plan decisions (detail in TEST-PLAN.md)
 
-1. Who tests v1: Devon only, or a small group?
-2. Test environment: the Proxmox VM, or a local machine first?
-3. Format: a checklist per screen and feature, or end-to-end scenarios (for example "create a part, add it to an assembly, release both through a change order")?
-4. What test data: the seed data set, or a realistic sample from the factory build-out?
-5. Pass criteria: every check must pass before v1 is accepted, or only must-have checks, with the rest logged as issues?
-6. Should the test plan include phone and tablet checks for every screen, or only key screens?
+| Question | Decision |
+|---|---|
+| Tester | Devon only |
+| Environment | The Proxmox VM, which already has Docker installed |
+| Format | Both: a checklist per screen and feature, and end-to-end scenarios |
+| Test data | Both: seed data set for the checklist, realistic factory build-out sample for the scenarios |
+| Pass criteria | Must checks must pass. Failed Should checks are logged as GitHub issues with label `v1-test`. |
+| Phone and tablet | Key screens only |
 
 ## Open items
 
@@ -95,6 +98,10 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 | Git implementation: extend `git.go` or adopt a full git library (branches, merges and tags are needed for change orders) | Decide before build |
 | Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
 | Mail server for email notifications (v2) | Devon |
+| Session inactivity timeout value (TEST-PLAN.md SGN-07) | To be defined |
+| Status of affected items after a change order is rejected or cancelled | To be defined |
+| Whether every assigned approver must approve a change order | To be defined |
+| Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
 
 ## Target architecture
 
