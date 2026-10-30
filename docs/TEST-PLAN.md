@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Document | DesignHub version 1 test plan |
-| Version | 0.1 (draft for review) |
+| Version | 0.2 (draft for review) |
 | Date | 2026-10-30 |
 | Owner | Devon |
 | Status | Draft |
@@ -56,7 +56,7 @@ Each check has a priority:
 
 | Item | Value |
 |---|---|
-| Host | Proxmox VM with Docker and Docker Compose installed |
+| Host | Proxmox VM with Docker and Docker Compose installed. DesignHub installed from the published `docker-compose.yml`. |
 | Network | Local network, fixed IP address |
 | Address | The VM's fixed IP address, through the `proxy` container |
 | Containers | `designhub`, `postgres`, `proxy`. `influxdb` is not started in version 1. |
@@ -122,9 +122,9 @@ Seed user names (`editor1`, `appr2` and so on), records and expected values are 
 | ID | Check | Expected | Priority |
 |---|---|---|---|
 | INS-01 | Start the stack with the single start command on the VM | `designhub`, `postgres` and `proxy` are running and report healthy | Must |
-| INS-02 | First start on an empty VM | PostgreSQL database and user are created and connected with no manual database steps | Must |
+| INS-02 | First start on an empty VM | Database password and self-signed certificate generated. PostgreSQL database and user created and connected with no manual database steps. | Must |
 | INS-03 | First start on an empty VM | Engineering repository exists on the `repo` volume. `git log` shows an initial commit. | Must |
-| INS-04 | Sign in with the Super Admin credentials entered during setup | Sign-in succeeds and Home opens | Must |
+| INS-04 | Run the setup command on the VM, enter a Super Admin username and password, then sign in | Password asked in the terminal and not echoed. Sign-in succeeds and Home opens. | Must |
 | INS-05 | Open the fixed IP address from another computer and from the phone | Sign-in screen loads | Must |
 | INS-06 | Load seed data with the test data option | Records in Appendix A exist. Library validation reports no errors. | Must |
 | INS-07 | Stop and start the stack with the single stop and start commands | All data is unchanged | Must |
@@ -142,9 +142,8 @@ Seed user names (`editor1`, `appr2` and so on), records and expected values are 
 | SGN-04 | Enter a wrong password repeatedly for `editor2` | Rate-limit message appears. The correct password is refused until the limit period ends. | Must |
 | SGN-05 | Admin sets a sign-in message, then clears it | Message shows above the form, then is hidden | Should |
 | SGN-06 | Click "Forgot password" | "Contact your administrator." | Should |
-| SGN-07 | Sign in without "Keep me signed in" and leave the browser idle past the inactivity timeout | Next action returns to the sign-in screen | Must |
+| SGN-07 | Sign in without "Keep me signed in" and leave the browser idle for more than 30 minutes | Next action returns to the sign-in screen | Must |
 | SGN-08 | Sign in with "Keep me signed in", close and reopen the browser | Still signed in. Signed out once 1 day has passed. | Must |
-| SGN-09 | Sign in as `appr2` (two-factor enabled) | Code field appears below Password after the password is accepted. A wrong code is refused. The correct code signs in. | Must |
 | SGN-10 | Sign out, then press the browser Back button | Sign-in screen. No record content shown. | Must |
 | SGN-11 | Sign in as `editor1` on desktop and phone. On desktop, Settings, Security, sign out of other devices. | Phone session ends at its next action | Should |
 | SGN-12 | Admin disables `viewer1`, then `viewer1` tries to sign in | Sign-in refused with the standard message | Must |
@@ -247,8 +246,9 @@ Seed user names (`editor1`, `appr2` and so on), records and expected values are 
 | CO-07 | Release 100005-001 on a change order with no Drawing file | Release warning for the missing Drawing. Approval and release are allowed. | Must |
 | CO-08 | Open CO-0002 as `appr2` and scroll | Approve and Reject bar stays visible at the bottom | Must |
 | CO-09 | `appr2` approves CO-0002 with a wrong password | Refused | Must |
-| CO-10 | `appr2` approves CO-0002 with correct password, two-factor code and comment | Approvals tab shows decision, time and comment. CO-0002 state Approved. | Must |
-| CO-11 | Reject a change order in review | State Rejected. Decision, time and comment recorded. | Must |
+| CO-10 | `appr2` approves CO-0002 with correct password and comment | Approvals tab shows decision, time and comment. CO-0002 state Approved, because every approver has now approved. | Must |
+| CO-11 | Reject a change order in review | State Rejected. Decision, time and comment recorded. Affected items keep their status. | Must |
+| CO-11a | Admin turns on "Return affected items to Draft", then reject a change order in review | Affected items return to Draft | Should |
 | CO-12 | `ra1` releases CO-0002 | 100002-001 rev 02 Released, rev 01 Superseded. Released by and Released on filled. Baseline created. | Must |
 | CO-13 | Open 100002-001 rev 01 | Banner: "You are viewing rev 01 (Superseded). Current: rev 02" with a link | Must |
 | CO-14 | Open the CO-0001 baseline, then compare it with the CO-0002 baseline | Baseline shows data exactly as released. Comparison shows only the 100002-001 change. | Must |
@@ -343,14 +343,13 @@ Seed user names (`editor1`, `appr2` and so on), records and expected values are 
 | ADM-08 | Settings, Appearance: Light, Dark, Follow device | Theme changes. Follow device matches the operating system setting. | Must |
 | ADM-09 | Settings, Home layout: turn a section off and move another | Home updates | Should |
 | ADM-10 | Set time zone to a different zone | Displayed times shift accordingly | Should |
-| ADM-11 | Settings, Security: enable two-factor for `editor1` | Two-factor enabled. Next sign-in asks for a code. | Must |
 | ADM-12 | Signed in as `editor1`, open Home | Sections listed in SCREENS.md section 3.1 show seed data: TSK-0001, TSK-0002, mention notification | Must |
 
 ### 7.13 Security (SEC)
 
 | ID | Check | Expected | Priority |
 |---|---|---|---|
-| SEC-01 | Send a request with a foreign Host header: `curl -k -H "Host: example.com" https://<ip>/` | Refused | Must |
+| SEC-01 | Super Admin sets Allowed addresses to the VM's IP address in Admin, System. Then send a request with a foreign Host header: `curl -k -H "Host: example.com" https://<ip>/` | Refused | Must |
 | SEC-02 | Send a POST to a save endpoint without a CSRF token using a valid session cookie | Refused | Must |
 | SEC-03 | Call the JSON API without signing in | 401, no data | Must |
 | SEC-04 | Browser developer tools, session cookie | Secure and HttpOnly set | Must |
@@ -373,7 +372,7 @@ Each check is run on the phone and on the tablet. All are Must unless noted.
 
 | ID | Screen | Check | Phone expected | Tablet expected |
 |---|---|---|---|---|
-| RSP-01 | Sign-in | Sign in, including two-factor as `appr2` | Single column, full width | Form centered |
+| RSP-01 | Sign-in | Sign in as `appr2` | Single column, full width | Form centered |
 | RSP-02 | Home | Open Home as `editor1` | Sections in one column | Sections in two columns |
 | RSP-03 | Library | Open Parts | Horizontal scroll. Simple list toggle shows ID, name, status. | Full table |
 | RSP-04 | Assembly view | Open the BOM of 100004-201, expand, switch to Flat | Tree and flat views readable, values match ASM-03 and ASM-04 | Same |
@@ -451,7 +450,7 @@ Scenarios use the realistic sample (Appendix B) on a fresh install with seed use
 | Step | User | Action | Result |
 |---|---|---|---|
 | 1 | `editor1` | Submit a change order with approver `appr2` | `appr2` notified |
-| 2 | `appr2` on the phone | Open the notification, review Changes, approve with password and two-factor code | State Approved |
+| 2 | `appr2` on the phone | Open the notification, review Changes, approve with password | State Approved |
 
 ### SCN-08 Obsolete purchased part
 
@@ -497,10 +496,6 @@ The prototype checks from HANDOFF.md, adapted for version 1.
 
 | Item | Affects |
 |---|---|
-| Two-factor setup flow (SCREENS.md section 17) | ADM-11 expected steps |
-| Session inactivity timeout value | SGN-07 |
-| Status of affected items after a change order is rejected or cancelled | CO-11, CO-16 |
-| Whether every assigned approver must approve, or a minimum number | CO-10, SCN-02 |
 | Real items for the realistic sample | Appendix B, section 9 |
 
 ---
@@ -519,7 +514,7 @@ All seed users share the password entered when seed data is loaded.
 | `admin1` | Admin | Admin | Admin | |
 | `ra1` | Release Authority | Viewer | | |
 | `appr1` | Approver | Viewer | | |
-| `appr2` | Approver | Viewer | | Two-factor enabled. TOTP secret shown once when seed data is loaded. |
+| `appr2` | Approver | Viewer | | |
 | `editor1` | Editor | Editor | Editor | |
 | `editor2` | Editor | Editor | | |
 | `contrib1` | Contributor | Contributor | | |

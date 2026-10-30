@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Document | DesignHub data model |
-| Version | 0.1 (draft for review) |
-| Date | 2026-10-29 |
+| Version | 0.2 (draft for review) |
+| Date | 2026-10-30 |
 | Owner | Devon |
 | Status | Draft |
 | Related | [SPEC.md](SPEC.md) |
@@ -177,6 +177,8 @@ An item becomes Obsolete only through a change order.
 ### 4.4 Change order states
 
 Draft, In Review, Approved, Released, Rejected, Cancelled.
+
+A change order is Approved when every assigned approver has approved, and Rejected when any approver rejects. When a change order is rejected or cancelled, its affected items keep their current status, unless the Admin setting "Return affected items to Draft" is on.
 
 ### 4.5 Work item workflow
 
@@ -437,7 +439,7 @@ All common engineering item fields, plus:
 | Priority | Choice | Yes | Low, Normal, High, Urgent |
 | State | Choice | Auto | Section 4.4 |
 | Owner | User | Yes | |
-| Approvers | User list | Yes, before review | Decision, time, comment and electronic signature per approver |
+| Approvers | User list | Yes, before review | Decision, time, comment and electronic signature per approver. All must approve. |
 | Released by | User | Auto | |
 | Released on | Date and time | Auto | |
 | Branch | Text | Auto | |
@@ -533,7 +535,6 @@ All work item common fields, with Status following section 4.6, plus:
 | Email | Email | Yes | |
 | Sign-in method | Choice | Yes | Local (v1), Google (v2) |
 | Password | Hash | Local only | Argon2id |
-| Two-factor | Yes/No | No | |
 | Library role | Role | Yes | |
 | Space roles | Space and role list | No | |
 | Default editing mode | Choice | Yes | Visual, Split, Source, Preview toggle |

@@ -41,8 +41,8 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 | 2. Data model | Complete |
 | 3. Screen layouts | Complete |
 | 4. v1 test plan: what Devon will test and what "working" means | Complete |
-| 5. Proxmox host preparation instructions for Devon (VM, fixed IP; Docker is already installed on the VM) | Next |
-| 6. Build v1, feature by feature on branches, only when Devon says to build | To do |
+| 5. Proxmox host preparation | Not needed. DesignHub installs on an existing Docker host like OpenSchem. |
+| 6. Build v1 on branch `v1-build`, all nine parts, one commit per part, one pull request at the end | In progress |
 | Devon reviews and merges PR #1 | Any time |
 
 ## Key decisions (detail in SPEC.md, DATA-MODEL.md and SCREENS.md)
@@ -93,15 +93,26 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 | Item | Owner |
 |---|---|
 | Review and merge PR #1 | Devon |
-| Two-factor setup flow (SCREENS.md section 17) | To be defined |
 | Meaning of "major update" for the Home layout reset (SCREENS.md section 17) | To be defined |
-| Git implementation: extend `git.go` or adopt a full git library (branches, merges and tags are needed for change orders) | Decide before build |
 | Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
 | Mail server for email notifications (v2) | Devon |
-| Session inactivity timeout value (TEST-PLAN.md SGN-07) | To be defined |
-| Status of affected items after a change order is rejected or cancelled | To be defined |
-| Whether every assigned approver must approve a change order | To be defined |
 | Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
+
+## Build decisions (2026-10-30)
+
+| Item | Decision |
+|---|---|
+| Base | Build from the specs on branch `v1-build`, created from `docs/spec-v1`. PR #1 is not waited on. |
+| Git | Full git library: go-git v5 |
+| Two-factor | Not in v1. Provided by Google sign-in in v2. |
+| Inactivity sign-out | 30 minutes |
+| Rejected or cancelled change order | Affected items keep their status. Admin setting can return them to Draft. |
+| Approvals | Every assigned approver must approve |
+| Install | Like OpenSchem: images on `ghcr.io/shwhat/designhub` published by GitHub Actions, `docker compose up -d` from the published compose file |
+| First Super Admin | Setup command on the host, password typed in the terminal |
+| HTTPS | Self-signed certificate by default, changeable after install |
+| Repository | Public |
+| Frontend | Svelte 5, Vite, Milkdown and CodeMirror 6 (FRONTEND.md) |
 
 ## Target architecture
 
@@ -114,7 +125,7 @@ All documents are on branch `docs/spec-v1` in PR #1, awaiting Devon's review.
 | Time-series | InfluxDB (v3 of the release plan), read and write |
 | Packaging | Docker Compose: designhub, postgres, influxdb, proxy (HTTPS) |
 | Host | Proxmox VM, local network first, company domain later |
-| Sign-in | Local accounts with Argon2id and optional TOTP in v1; Google sign-in in v2 once a domain with HTTPS exists |
+| Sign-in | Local accounts with Argon2id in v1; Google sign-in with two-factor in v2 once a domain with HTTPS exists |
 
 Setup must create and connect the databases automatically. Devon is new to PostgreSQL and InfluxDB.
 

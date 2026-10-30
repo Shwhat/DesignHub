@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Document | DesignHub product specification |
-| Version | 0.2 (draft for review) |
-| Date | 2026-10-29 |
+| Version | 0.3 (draft for review) |
+| Date | 2026-10-30 |
 | Owner | Devon |
 | Status | Draft |
 
@@ -57,7 +57,7 @@ Initial use is product design, followed by the factory build-out. Both are first
 | Item | Value |
 |---|---|
 | Host | Proxmox |
-| Guest | Linux virtual machine |
+| Guest | Linux virtual machine with Docker installed |
 | Packaging | Docker Compose |
 | Initial network | Local network, fixed IP address |
 | Later network | Company domain name with HTTPS |
@@ -69,7 +69,7 @@ Initial use is product design, followed by the factory build-out. Both are first
 | `designhub` | Application server and web interface |
 | `postgres` | Application database |
 | `influxdb` | Time-series database (enabled in a later release) |
-| `proxy` | HTTPS termination in front of the application |
+| `proxy` | HTTPS termination in front of the application. Uses a self-signed certificate until a domain is configured. |
 
 Setup creates, configures and connects the databases automatically. The whole system starts and stops with a single command.
 
@@ -82,9 +82,16 @@ Setup creates, configures and connects the databases automatically. The whole sy
 | `influxdata` | InfluxDB data |
 | `backups` | Scheduled backup output |
 
-### 3.4 Updates
+### 3.4 Installation
 
-A new version is deployed by pulling a new application image and restarting the stack. Database schema changes are applied automatically on startup and recorded in the audit log.
+- Images are published to the GitHub container registry (`ghcr.io/shwhat/designhub`) on every push to the main branch, for amd64 and arm64.
+- Installation: save the published `docker-compose.yml` on the host and run `docker compose up -d`.
+- The first start generates the database password and the self-signed certificate automatically.
+- The first Super Admin is created with a setup command run on the host, which asks for the password in the terminal. The password is never stored in a file or environment variable.
+
+### 3.5 Updates
+
+A new version is deployed with `docker compose pull` and `docker compose up -d`. Database schema changes are applied automatically on startup and recorded in the audit log.
 
 ## 4. Architecture and data storage
 
@@ -141,7 +148,7 @@ Work items, change order records, comments and time entries can be exported to m
 | Google sign-in | Available once DesignHub has a fixed HTTPS address |
 
 - Passwords are hashed with Argon2id.
-- Optional two-factor authentication with an authenticator app (TOTP).
+- Two-factor authentication is provided through Google sign-in (version 2). Local accounts use password sign-in.
 - Google sign-in is restricted to the company's Google Workspace domain and, optionally, to specific Google groups.
 - An account is created automatically on first Google sign-in with a default role set by an Admin.
 - A disabled Google account can no longer sign in.
@@ -322,7 +329,9 @@ Draft, In Review, Approved, Released, Rejected, Cancelled.
 - Approvers are assigned per change order. Users whose role permits it can add or remove approvers.
 - Each approval or rejection records the approver, time and comment.
 - An approver confirms their decision by re-entering their password (electronic signature).
+- Every assigned approver must approve. A single rejection rejects the change order.
 - The author cannot be the only approver.
+- When a change order is rejected or cancelled, its affected items keep their current status. An Admin setting can instead return them to Draft.
 - A change order cannot be approved while validation errors exist on the affected items.
 
 ### 8.4 Release
@@ -429,7 +438,8 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 ## 14. Security and audit
 
 - HTTPS for all access once a domain is configured. During local network testing, access uses the fixed IP address on the local network.
-- Session cookies are secure, HTTP-only and expire after inactivity. "Keep me signed in" keeps a session for 1 day.
+- Session cookies are secure, HTTP-only and expire after 30 minutes of inactivity. "Keep me signed in" keeps a session for 1 day.
+- An allowed-addresses setting limits the host names and IP addresses the application answers to.
 - Protection against cross-site request forgery on every form and API call.
 - Rate limiting on sign-in.
 - Audit log of sign-ins, permission changes, approvals, releases, settings changes and data exports.
@@ -449,7 +459,7 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 | Area | Included |
 |---|---|
 | Deployment | Docker Compose on Proxmox, local network access |
-| Sign-in | Local accounts, two-factor authentication |
+| Sign-in | Local accounts |
 | Roles | Super Admin, Admin, Release Authority, Approver, Editor, Contributor, Viewer |
 | Spaces and Pages | Spaces, page tree, all four editing modes, Bill of Design and work list blocks, comments, history, controlled pages |
 | Engineering data | Requirements, parts, assemblies, procedures, documents, Bill of Design, where-used, traceability, validation, attachments, manufacturer list |
@@ -461,7 +471,7 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 
 ### 16.2 Version 2
 
-- Google sign-in (once the domain is in place)
+- Google sign-in with two-factor authentication (once the domain is in place)
 - Vendor and Contractor roles with company scoping and expiry
 - Custom roles and editable workflows
 - Sprints, milestones, timeline view and time tracking
@@ -487,3 +497,4 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 | Detailed data model (fields and relations per type) | Defined in [DATA-MODEL.md](DATA-MODEL.md) |
 | Screen layouts | Defined in [SCREENS.md](SCREENS.md) |
 | Test plan for version 1 | Defined in [TEST-PLAN.md](TEST-PLAN.md) |
+| Frontend framework and editor | Defined in [FRONTEND.md](FRONTEND.md) |

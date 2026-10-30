@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Document | DesignHub version 1 screen layouts |
-| Version | 0.1 (draft for review) |
-| Date | 2026-10-29 |
+| Version | 0.2 (draft for review) |
+| Date | 2026-10-30 |
 | Owner | Devon |
 | Status | Draft |
 | Related | [SPEC.md](SPEC.md), [DATA-MODEL.md](DATA-MODEL.md) |
@@ -62,7 +62,6 @@ Engineering items, change orders, work items and NCRs share one layout:
 | Top | DesignHub logo |
 | Admin message | Text set by an Admin, shown above the form. Hidden when empty. |
 | Form | Username, Password, "Keep me signed in" checkbox, Sign in button |
-| Two-factor | For users with two-factor enabled, a Code field appears below Password on the same screen after the password is accepted |
 | Forgot password | Link below the form. Shows "Contact your administrator." |
 | Errors | One message for any wrong username or password: "Username or password is incorrect." A rate-limit message after repeated failures. |
 | Keep me signed in | Keeps the session for 1 day. Fixed, not configurable. |
@@ -167,7 +166,7 @@ Uses the common record layout (section 1.1).
 | Tabs | Details, Affected items, Changes, Approvals, Validation, History |
 | Changes tab | Toggle between side-by-side (released left, proposed right) and single-column with additions and removals highlighted. Single-column on phone. |
 | Decision bar | Approve and Reject in a fixed bar at the bottom of the screen, visible while scrolling. Shown only to assigned approvers. |
-| Electronic signature | Pop-up asking for password, comment and two-factor code if enabled |
+| Electronic signature | Pop-up asking for password and comment |
 | Approvals tab | Each approver with decision, time and comment. "Add approver" button for permitted roles. |
 
 ## 9. Space home and page tree
@@ -249,6 +248,7 @@ Uses the common record layout (section 1.1).
 | Roles | Read-only permission grid. Roles as columns, permissions as rows. |
 | Lists | One page with a list picker. Each list is an editable table with drag to reorder and an Active toggle. |
 | Super Admin sections | System settings, backups and database status. In the same menu, visible only to Super Admins. |
+| System | Allowed addresses, change order rejection behavior, backups and database status |
 
 ## 16. User profile and settings
 
@@ -256,7 +256,7 @@ Uses the common record layout (section 1.1).
 |---|---|
 | Profile menu | My profile, Settings, Admin (if permitted), Sign out |
 | Profile | Display name, email, time zone |
-| Security | Change password, two-factor, active sessions with sign out of other devices |
+| Security | Change password, active sessions with sign out of other devices |
 | Appearance | Light, dark, follow device |
 | Editing | Default editing mode |
 | Home layout | Sections on or off and their order |
@@ -266,5 +266,4 @@ Uses the common record layout (section 1.1).
 
 | Item | Status |
 |---|---|
-| Two-factor setup flow | To be defined |
 | Meaning of "major update" for the Home layout reset | To be defined |
