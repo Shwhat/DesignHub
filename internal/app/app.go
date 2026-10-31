@@ -42,6 +42,12 @@ type App struct {
 	roles   map[string]*Role // by id
 
 	indexMu sync.Mutex // serializes index rebuilds
+
+	google googleStates // Google sign-in requests in progress
+
+	// GoogleAuthURL and GoogleTokenURL replace Google's endpoints in tests.
+	GoogleAuthURL  string
+	GoogleTokenURL string
 }
 
 // SystemAuthor is used for commits made by the system itself.

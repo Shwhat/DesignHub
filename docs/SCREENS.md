@@ -61,9 +61,10 @@ Engineering items, change orders, work items and NCRs share one layout:
 |---|---|
 | Top | DesignHub logo |
 | Admin message | Text set by an Admin, shown above the form. Hidden when empty. |
+| Google sign-in | When configured: "Sign in with Google" button and "Keep me signed in" checkbox above the password form. The password form opens from a "Sign in with a password" link, or "Recovery sign-in" when password sign-in is turned off. |
 | Form | Username, Password, "Keep me signed in" checkbox, Sign in button |
 | Forgot password | Link below the form. Shows "Contact your administrator." |
-| Errors | One message for any wrong username or password: "Username or password is incorrect." A rate-limit message after repeated failures. |
+| Errors | One message for any wrong username or password: "Username or password is incorrect." A rate-limit message after repeated failures. Google refusals return to this screen with a message: address not allowed, account disabled, address shared by several accounts, request expired or cancelled. |
 | Keep me signed in | Keeps the session for 1 day. Fixed, not configurable. |
 | Theme | Follows the device setting |
 | Phone | Single column, full width |
@@ -166,7 +167,7 @@ Uses the common record layout (section 1.1).
 | Tabs | Details, Affected items, Changes, Approvals, Validation, History |
 | Changes tab | Toggle between side-by-side (released left, proposed right) and single-column with additions and removals highlighted. Single-column on phone. |
 | Decision bar | Approve and Reject in a fixed bar at the bottom of the screen, visible while scrolling. Shown only to assigned approvers. |
-| Electronic signature | Pop-up asking for password and comment |
+| Electronic signature | Pop-up asking for a comment and the password (local accounts) or signing PIN (Google accounts). A Google user without a PIN is sent to Settings, Security. |
 | Approvals tab | Each approver with decision, time and comment. "Add approver" button for permitted roles. |
 
 ## 9. Space home and page tree
@@ -244,11 +245,11 @@ Uses the common record layout (section 1.1).
 |---|---|
 | Entry | Admin item in the profile menu, shown to Admins and Super Admins |
 | Admin menu | Users, Roles, Spaces, Manufacturers, Lists, File roles, Sign-in message, Audit log, System |
-| Users | Table: username, display name, email, library role, active, last sign-in. Detail page per user for space roles, password reset and disable. |
+| Users | Table: username, display name, email, library role, active, last sign-in. Detail page per user for space roles, password reset (local accounts), signing PIN clear (Google accounts) and disable. Table includes the sign-in method. |
 | Roles | Read-only permission grid. Roles as columns, permissions as rows. |
 | Lists | One page with a list picker. Each list is an editable table with drag to reorder and an Active toggle. |
 | Super Admin sections | System settings, backups and database status. In the same menu, visible only to Super Admins. |
-| System | Allowed addresses, change order rejection behavior, backups and database status |
+| System | Google sign-in (client ID, client secret, public address, redirect URI to register with Google, allowed domains, allowed individual addresses, show Google sign-in, turn off password sign-in), allowed addresses, change order rejection behavior, backups and database status |
 
 ## 16. User profile and settings
 
@@ -256,7 +257,7 @@ Uses the common record layout (section 1.1).
 |---|---|
 | Profile menu | My profile, Settings, Admin (if permitted), Sign out |
 | Profile | Display name, email, time zone |
-| Security | Change password, active sessions with sign out of other devices |
+| Security | Local accounts: change password. Google accounts: signing PIN set or change. Both: active sessions with sign out of other devices. |
 | Appearance | Light, dark, follow device |
 | Editing | Default editing mode |
 | Home layout | Sections on or off and their order |

@@ -90,7 +90,30 @@ func (a *App) withUser(next handlerFunc) handlerFunc {
 func (a *App) apiSignInInfo(w http.ResponseWriter, r *http.Request) error {
 	var msg string
 	a.Setting("sign_in_message", &msg)
-	return ok(w, map[string]any{"message": msg, "version": a.Cfg.Version})
+	g := a.googleSettings()
+	return ok(w, map[string]any{"message": msg, "version": a.Cfg.Version, "google": g.ready(), "passwordOff": g.ready() && g.Required})
+}
+
+// startSession creates a session for a signed-in user, sets the cookie and
+// returns the CSRF token.
+func (a *App) startSession(ctx context.Context, w http.ResponseWriter, r *http.Request, userID string, keep bool) (string, error) {
+	token, th, err := auth.NewToken()
+	if err != nil {
+		return "", err
+	}
+	csrf, _, err := auth.NewToken()
+	if err != nil {
+		return "", err
+	}
+	expires := time.Now().Add(keepSignedIn)
+	if _, err := a.DB.Exec(ctx, `INSERT INTO sessions (token_hash, user_id, csrf_token, keep, expires_at, user_agent, ip) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		th, userID, csrf, keep, expires, truncate(r.UserAgent(), 300), clientIP(r)); err != nil {
+		return "", err
+	}
+	a.DB.Exec(ctx, `UPDATE users SET last_sign_in = now() WHERE id = $1`, userID)
+	a.DB.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now() OR (NOT keep AND last_seen < now() - interval '1 day')`)
+	a.setSessionCookie(w, r, token, keep)
+	return csrf, nil
 }
 
 func (a *App) apiSignIn(w http.ResponseWriter, r *http.Request) error {
@@ -112,40 +135,44 @@ func (a *App) apiSignIn(w http.ResponseWriter, r *http.Request) error {
 		a.Audit(ctx, nil, ip, "signin.blocked", "", map[string]any{"username": name})
 		return &Error{Status: http.StatusTooManyRequests, Code: "rate_limited", Message: "Too many failed attempts. Try again in 15 minutes."}
 	}
-	var id, hash string
+	// While password sign-in is off, only a Super Admin given a recovery
+	// window from the host may use it. While Google sign-in is on,
+	// Google-linked accounts sign in with Google only.
+	g := a.googleSettings()
+	off := g.ready() && g.Required
+	recovery := a.recoveryUser(ctx)
+	var id, hash, method string
 	var active bool
-	err := a.DB.QueryRow(ctx, `SELECT id::text, password_hash, active FROM users WHERE lower(username) = $1 AND sign_in_method = 'local'`, name).Scan(&id, &hash, &active)
+	err := a.DB.QueryRow(ctx, `SELECT id::text, password_hash, active, sign_in_method FROM users WHERE lower(username) = $1`, name).Scan(&id, &hash, &active, &method)
 	if err != nil {
+		hash = ""
+	}
+	isRecovery := recovery != "" && id == recovery
+	if (off || (g.ready() && method == "google")) && !isRecovery {
 		hash = ""
 	}
 	if !auth.CheckPassword(hash, in.Password) || !active {
 		a.Limiter.Fail(keys...)
 		a.Audit(ctx, nil, ip, "signin.failed", "", map[string]any{"username": name})
+		if off {
+			return &Error{Status: http.StatusUnauthorized, Code: "password_off", Message: "Password sign-in is turned off. Sign in with Google."}
+		}
 		return &Error{Status: http.StatusUnauthorized, Code: "bad_credentials", Message: "Username or password is incorrect."}
 	}
 	a.Limiter.Reset(keys...)
-	token, th, err := auth.NewToken()
+	csrf, err := a.startSession(ctx, w, r, id, in.Keep)
 	if err != nil {
 		return err
 	}
-	csrf, _, err := auth.NewToken()
-	if err != nil {
-		return err
+	if isRecovery {
+		a.DB.Exec(ctx, `DELETE FROM settings WHERE key = 'password_recovery'`)
 	}
-	expires := time.Now().Add(keepSignedIn)
-	if _, err := a.DB.Exec(ctx, `INSERT INTO sessions (token_hash, user_id, csrf_token, keep, expires_at, user_agent, ip) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		th, id, csrf, in.Keep, expires, truncate(r.UserAgent(), 300), ip); err != nil {
-		return err
-	}
-	a.DB.Exec(ctx, `UPDATE users SET last_sign_in = now() WHERE id = $1`, id)
-	a.DB.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now() OR (NOT keep AND last_seen < now() - interval '1 day')`)
-	a.setSessionCookie(w, r, token, in.Keep)
 	u, err := a.loadUser(ctx, id)
 	if err != nil {
 		return err
 	}
 	u.CSRF = csrf
-	a.Audit(ctx, u, ip, "signin", "", map[string]any{"keep": in.Keep})
+	a.Audit(ctx, u, ip, "signin", "", map[string]any{"keep": in.Keep, "method": "password", "recovery": isRecovery})
 	p, err := a.profileOf(ctx, u)
 	if err != nil {
 		return err
@@ -237,7 +264,7 @@ func (a *App) apiChangePassword(w http.ResponseWriter, r *http.Request) error {
 	return ok(w, nil)
 }
 
-// checkUserPassword verifies a password for electronic signatures. Failures
+// checkUserPassword verifies a local account password. Failures
 // count toward the sign-in limit.
 func (a *App) checkUserPassword(ctx context.Context, userID, pw string) bool {
 	var hash, name string

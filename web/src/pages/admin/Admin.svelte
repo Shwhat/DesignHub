@@ -98,6 +98,19 @@
   let hostsText = $state('');
   if (section === 'signin' || section === 'system') get('/api/admin/system').then((s) => { sys = s; hostsText = (s.allowedHosts || []).join('\n'); });
   if (section === 'system') get('/api/admin/status').then((s) => (status = s));
+  // Google sign-in ---------------------------------------------------------
+  let gs: any = $state(null);
+  let gDomains = $state('');
+  let gEmails = $state('');
+  let gSecret = $state('');
+  function showGoogle(v: any) { gs = v; gDomains = v.allowedDomains.join('\n'); gEmails = v.allowedEmails.join('\n'); gSecret = ''; }
+  if (section === 'system') get('/api/admin/google').then(showGoogle).catch(() => {});
+  async function saveGoogle(body: any, done = 'Saved.', box?: HTMLInputElement) {
+    try { showGoogle(await put('/api/admin/google', body)); toast(done); } catch (e: any) { if (box) box.checked = !box.checked; toast(e.message, 'error'); }
+  }
+  function googleFields() {
+    return { clientId: gs.clientId, clientSecret: gSecret, publicUrl: gs.publicUrl, allowedDomains: gDomains.split(/[\s,]+/).filter(Boolean), allowedEmails: gEmails.split(/[\s,]+/).filter(Boolean) };
+  }
   async function saveSys(body: any) {
     try { sys = await put('/api/admin/system', body); hostsText = (sys.allowedHosts || []).join('\n'); toast('Saved.'); } catch (e: any) { toast(e.message, 'error'); }
   }
@@ -136,8 +149,14 @@
         <div class="row end"><button class="primary" onclick={() => updateUser({ displayName: user.displayName, email: user.email, libraryRole: user.libraryRole })}>Save</button></div>
         <h3>Space roles</h3>
         <table class="data"><tbody>{#each spaces as s}<tr><td>{s.name}</td><td><select style="width: auto" value={user.spaceRoles[s.id] || ''} onchange={(e) => updateUser({ spaceRoles: { [s.id]: (e.target as HTMLSelectElement).value } })}><option value="">No access</option>{#each roles as r}<option>{r.name}</option>{/each}</select></td></tr>{/each}</tbody></table>
+        {#if user.signInMethod === 'google'}
+          <h3 style="margin-top: 1.25rem">Sign-in</h3>
+          <p class="small muted">Signs in with Google as {user.email}. Signing PIN {user.signingPinSet ? 'set' : 'not set'}.</p>
+          {#if user.signingPinSet}<button onclick={() => confirm(`Clear the signing PIN for ${user.username}? They must set a new one before signing.`) && updateUser({ clearSigningPin: true }, 'Signing PIN cleared.')}>Clear signing PIN</button>{/if}
+        {:else}
         <h3 style="margin-top: 1.25rem">Password reset</h3>
         <div class="row"><input type="password" style="max-width: 260px" placeholder="New password" autocomplete="new-password" bind:value={resetPw} /><button disabled={resetPw.length < 10} onclick={() => { updateUser({ password: resetPw }, 'Password reset. The user was signed out.'); resetPw = ''; }}>Reset password</button></div>
+        {/if}
         <h3 style="margin-top: 1.25rem">Account</h3>
         {#if user.active}<button class="danger" onclick={() => confirm(`Disable ${user.username}? They can no longer sign in.`) && updateUser({ active: false }, 'User disabled.')}>Disable user</button>
         {:else}<button onclick={() => updateUser({ active: true }, 'User enabled.')}>Enable user</button>{/if}
@@ -146,8 +165,8 @@
     {:else}
       <div class="row end" style="margin-bottom: 0.75rem"><button class="primary" onclick={() => (newUser = { username: '', displayName: '', email: '', password: '', libraryRole: 'Viewer', spaceRoles: {} })}>New user</button></div>
       <div class="card table-wrap"><table class="data">
-        <thead><tr><th>Username</th><th>Display name</th><th class="hide-phone">Email</th><th>Library role</th><th>Active</th><th class="hide-phone">Last sign-in</th></tr></thead>
-        <tbody>{#each users as u}<tr class="clickable" onclick={() => navigate('/admin/users/' + u.id)}><td>{u.username}</td><td>{u.displayName}</td><td class="hide-phone">{u.email}</td><td>{u.libraryRole}</td><td>{u.active ? 'Yes' : 'No'}</td><td class="hide-phone">{dateTime(u.lastSignIn)}</td></tr>{/each}</tbody>
+        <thead><tr><th>Username</th><th>Display name</th><th class="hide-phone">Email</th><th>Library role</th><th>Active</th><th class="hide-phone">Sign-in</th><th class="hide-phone">Last sign-in</th></tr></thead>
+        <tbody>{#each users as u}<tr class="clickable" onclick={() => navigate('/admin/users/' + u.id)}><td>{u.username}</td><td>{u.displayName}</td><td class="hide-phone">{u.email}</td><td>{u.libraryRole}</td><td>{u.active ? 'Yes' : 'No'}</td><td class="hide-phone">{u.signInMethod === 'google' ? 'Google' : 'Password'}</td><td class="hide-phone">{dateTime(u.lastSignIn)}</td></tr>{/each}</tbody>
       </table></div>
     {/if}
   {:else if section === 'roles'}
@@ -215,6 +234,24 @@
       <tbody>{#each audit as a}<tr><td style="white-space: nowrap">{dateTime(a.at)}</td><td>{a.username}</td><td>{a.action}</td><td class="id">{a.recordId}</td><td class="small mono" style="max-width: 420px; word-break: break-all">{JSON.stringify(a.detail)}</td><td class="hide-phone">{a.ip}</td></tr>{/each}</tbody></table></div>
     {#if audit.length >= 200}<button style="margin-top: 0.75rem" onclick={() => loadAudit(true)}>Older entries</button>{/if}
   {:else if section === 'system'}
+    {#if gs}
+      <div class="card card-body" style="margin-bottom: 1rem">
+        <h3>Google sign-in</h3>
+        <p class="small muted">People sign in with their Google account. Only addresses in an allowed domain or listed individually can sign in. New accounts start as Viewer with no space access.</p>
+        <div class="grid2">
+          <div class="field"><label for="gcid">Client ID</label><input id="gcid" autocomplete="off" bind:value={gs.clientId} /></div>
+          <div class="field"><label for="gcs">Client secret</label><input id="gcs" type="password" autocomplete="new-password" placeholder={gs.secretSet ? 'Saved. Enter a new one to replace it.' : ''} bind:value={gSecret} /></div>
+          <div class="field"><label for="gpu">Public address</label><input id="gpu" placeholder="https://designhub.example.com" bind:value={gs.publicUrl} /></div>
+          <div class="field"><label for="gru">Redirect URI for the Google client</label><input id="gru" readonly value={gs.redirectUri || 'Set the public address first.'} /></div>
+          <div class="field"><label for="gd">Allowed Google Workspace domains, one per line</label><textarea id="gd" placeholder="example.com" bind:value={gDomains}></textarea></div>
+          <div class="field"><label for="ge">Allowed individual addresses, one per line</label><textarea id="ge" placeholder="someone@gmail.com" bind:value={gEmails}></textarea></div>
+        </div>
+        <div class="row end"><button class="primary" onclick={() => saveGoogle(googleFields())}>Save</button></div>
+        <label class="checkbox" style="margin-top: 0.75rem"><input type="checkbox" checked={gs.enabled} onchange={(e) => { const on = (e.target as HTMLInputElement).checked; saveGoogle({ ...googleFields(), enabled: on }, on ? 'Google sign-in turned on.' : 'Google sign-in turned off.', e.target as HTMLInputElement); }} /> Show Google sign-in</label>
+        <label class="checkbox"><input type="checkbox" checked={gs.required} disabled={!gs.enabled || session.me?.libraryRole !== 'Super Admin'} onchange={(e) => { const on = (e.target as HTMLInputElement).checked; if (on && !confirm('Turn off password sign-in for everyone, including Super Admins? Recovery is then only possible with the designhub recovery command on the server.')) { (e.target as HTMLInputElement).checked = false; return; } saveGoogle({ required: on }, on ? 'Password sign-in turned off.' : 'Password sign-in turned on.', e.target as HTMLInputElement); }} /> Turn off password sign-in</label>
+        {#if gs.enabled && !gs.meLinked}<p class="small muted">Sign out and sign in with Google once before turning off password sign-in.</p>{/if}
+      </div>
+    {/if}
     {#if sys}
       <div class="card card-body" style="margin-bottom: 1rem">
         <h3>Allowed addresses</h3>

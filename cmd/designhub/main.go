@@ -35,6 +35,8 @@ Commands:
   serve          Run the server (default)
   init-secrets   Create the database password and TLS certificate if missing
   setup-admin    Create a Super Admin account, or reset a Super Admin password
+  recovery       Let a Super Admin sign in with a password for one hour,
+                 even when password sign-in is turned off
   seed           Load the test data set (test installations only)
   backup         Write a backup now
   restore NAME   Restore a backup (stop the designhub service first)
@@ -57,6 +59,8 @@ func main() {
 		err = initSecrets()
 	case "setup-admin":
 		err = setupAdmin()
+	case "recovery":
+		err = recovery()
 	case "seed":
 		err = seed()
 	case "backup":
@@ -231,7 +235,7 @@ func setupAdmin() error {
 		if err := a.ResetPassword(ctx, username, pw); err != nil {
 			return err
 		}
-		fmt.Println("Password reset. Sign in with the new password.")
+		fmt.Println("Password reset. Sign in with the new password. If password sign-in is turned off, run designhub recovery instead.")
 		return nil
 	}
 	display, err := prompt("Display name: ")
@@ -385,5 +389,30 @@ func healthcheck() error {
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}
+	return nil
+}
+
+func recovery() error {
+	ctx := context.Background()
+	a, closeDB, err := open(ctx)
+	if err != nil {
+		return err
+	}
+	defer closeDB()
+	fmt.Println("DesignHub recovery sign-in")
+	fmt.Println("Sets a new password for a Super Admin and allows password sign-in for that account for one hour.")
+	username, err := prompt("Super Admin username: ")
+	if err != nil {
+		return err
+	}
+	pw, err := promptPassword("New password (at least 10 characters): ")
+	if err != nil {
+		return err
+	}
+	until, err := a.Recover(ctx, username, pw)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Sign in as %s with the new password before %s (UTC). The window closes after the first sign-in.\n", username, until.Format("2006-01-02 15:04"))
 	return nil
 }

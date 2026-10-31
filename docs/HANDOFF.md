@@ -1,13 +1,13 @@
 # DesignHub Handoff
 
-Date: 2026-10-31 (updated 11:30)
+Date: 2026-10-31 (updated 12:10)
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. PR #4 (bug 2 and four smaller fixes) is merged. The next step is the open bug list in the handoff. Start by asking me the open questions listed there.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. PR #6 (Google sign-in) is open for review. The next steps are in the handoff.
 
 ## Documents
 
@@ -47,7 +47,8 @@ All documents and code are on `main`.
 | 6. Build v1 on branch `v1-build`, one pull request at the end | Complete (PR #2) |
 | 7. Devon merges PR #2 and installs on the VM | Complete |
 | 8. Devon tests with TEST-PLAN.md | In progress |
-| 9. Fix the bug list, one branch per fix or group of fixes | In progress. PR #4 merged. Bugs 1, 3 and 4 wait on Devon. |
+| 9. Fix the bug list, one branch per fix or group of fixes | In progress. PR #4 merged. Bug 3 direction agreed. Bug 1 waits on Devon. |
+| 10. Google sign-in, pulled forward from v2 | Written on branch `google-signin`, PR #6 open for review |
 
 ## Pull request history
 
@@ -57,6 +58,8 @@ All documents and code are on `main`.
 | #2 | DesignHub version 1 | 2026-10-30 |
 | #3 | Update handoff with install state and bug list | 2026-10-31 |
 | #4 | Fix Library columns, phone search icon, banner spacing and svelte-check warnings | 2026-10-31 |
+| #5 | Update handoff | 2026-10-31 |
+| #6 | Google sign-in with allowed domains and addresses, signing PIN and recovery | Open |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
@@ -110,7 +113,8 @@ No `v1-test` issues have been logged yet.
 | Item | Owner |
 |---|---|
 | Meaning of "major update" for the Home layout reset (SCREENS.md section 17) | To be defined |
-| Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
+| Domain name and HTTPS certificate (needed for Google sign-in). Cloudflare Tunnel with an Origin CA certificate is set up per the DesignHub Docker Quick Guide. | Devon |
+| Google Cloud OAuth client for each installation (see Google sign-in setup below) | Devon |
 | Mail server for email notifications (v2) | Devon |
 | Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
 | Answers to the open bug questions below | Devon |
@@ -121,23 +125,16 @@ Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from
 
 | # | Report | Finding | State |
 |---|---|---|---|
-| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Open, waiting on Devon (questions below) |
+| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Tree part resolved in the current working version. Open: what "a much more robust pages setup" means (question below) |
 | 2 | Parts do not show under Library. The item count goes up. | Cause: `GET /api/prefs/{key}` returned `{"ok":true}` when the user had no saved preference, so Library used that object as its column list and drew no columns. The work List view had the same fault. | Fixed in PR #4. Devon to retest. |
-| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. | Open, waiting on Devon to agree a visual direction |
-| 4 | "where" (message cut off) | Incomplete | Open, waiting on Devon |
+| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. Direction agreed 2026-10-31: match OpenSchem's styling (program-design-guide.md) so the programs feel like one set: tokens, light and dark themes, typography, spacing, buttons, menus, dialogs, lists and icon style. Stay on Svelte and keep the current DesignHub layout; the OpenSchem ribbon, docking panels and plain-JavaScript structure are not adopted. | Open, ready to start |
+| 4 | "where" (message cut off) | Dropped by Devon 2026-10-31 | Closed |
 
 ### Open questions for Devon
 
-These were asked on 2026-10-31 and not yet answered.
-
 | Bug | Question |
 |---|---|
-| 1 | How was the page created: the sidebar "+", the "..." menu "New child page", or somewhere else? |
-| 1 | Which space was it in? |
-| 1 | Did the page appear after a browser reload? |
 | 1 | What does "a much more robust pages setup" mean? Candidates: a New page button on the space home and page view, a parent page picker, templates, a full page list per space. |
-| 3 | Which visual direction? Agree this before any redesign work. |
-| 4 | What was the rest of the message after "where"? |
 
 ### PR #4 detail
 
@@ -173,13 +170,68 @@ On the VM: `docker compose pull && docker compose up -d`, then:
 | The four editing modes, image paste and "/" block insert have not been driven in a browser; only page display is verified | `web/src/components/Editor.svelte` |
 | `.gitkeep` plugin not yet exercised by a build | `web/vite.config.ts` |
 
+## Google sign-in (branch `google-signin`)
+
+Decisions made with Devon on 2026-10-31:
+
+| Question | Decision |
+|---|---|
+| When | Now, ahead of the v2 plan |
+| Allowed domains | Set per installation in Admin, System. Nothing about a company is fixed in the code. |
+| Individual addresses | Also allowed, for single-person companies using personal Google accounts |
+| Google groups | Not used for now |
+| Hostname | Set per installation (public address in Admin, System) |
+| Role for new Google users | Viewer, no space access. An Admin assigns roles afterward. |
+| Super Admin | Also signs in with Google once password sign-in is turned off |
+| Recovery | `designhub recovery` on the host: new password and one password sign-in within one hour |
+| Electronic signatures for Google users | Signing PIN set in Settings, Security. An Admin can clear a forgotten PIN. |
+
+Implementation:
+
+| Part | Where |
+|---|---|
+| Flow, settings API, account matching, recovery | `internal/app/google.go` (OpenID Connect code flow with PKCE, no new Go dependencies) |
+| Signature check and signing PIN API | `internal/app/signing.go` |
+| Password sign-in rules, shared session start | `internal/app/session.go` |
+| Schema | `internal/db/migrations/0003_google_signin.sql` (`users.google_sub`, `users.signing_pin_hash`) |
+| Recovery command | `cmd/designhub/main.go` |
+| Screens | `web/src/pages/SignIn.svelte`, `web/src/pages/admin/Admin.svelte` (System card, user detail), `web/src/pages/Settings.svelte` (Security), `web/src/components/SignatureDialog.svelte` |
+| Tests | `internal/app/google_test.go` (fake Google server: new account, domain and address rules, personal account with a company email refused, unverified and disabled refused, shared email refused, Super Admin linking, password off, recovery, signing PIN) |
+
+API: `GET /api/auth/google/start`, `GET /api/auth/google/callback`, `GET` and `PUT /api/admin/google` (Super Admin), `PUT /api/me/signing-pin`, `clearSigningPin` on `PATCH /api/users/{id}`. `GET /api/signin` reports `google` and `passwordOff`.
+
+Behavior notes:
+
+- The ID token comes straight from Google's token endpoint over HTTPS, so its signature is not checked separately (Google's documented rule for this case). Issuer, audience, expiry and nonce are checked.
+- Sign-in state is held in server memory for 10 minutes, so a server restart during a sign-in makes that attempt expire.
+- The client secret is stored in the settings table, is never returned to the browser and is not written to the audit log.
+- Turning off password sign-in requires the Super Admin making the change to have already signed in with Google.
+- The rule "at least one active local Super Admin" is now "at least one active Super Admin".
+- Viewer can read the Library. New Google users therefore see Library items until an Admin changes their role.
+
+### Google sign-in setup (per installation)
+
+1. In Google Cloud console, create a project, configure the OAuth consent screen (Internal for a single Workspace organization, External when personal addresses are allowed), and create an OAuth client of type Web application.
+2. In DesignHub, Admin, System, Google sign-in: enter the public address (for example `https://designhub.example.com`) and save. Copy the redirect URI shown.
+3. In the Google OAuth client, add that redirect URI under Authorized redirect URIs.
+4. Paste the client ID and client secret into DesignHub, add allowed domains and addresses, save, and turn on "Show Google sign-in".
+5. Set the Super Admin's email to their Google address, sign out, and sign in with Google.
+6. Set a signing PIN in Settings, Security.
+7. Turn on "Turn off password sign-in" when ready.
+8. Make sure the public hostname is in Admin, System, Allowed addresses.
+
+### Not yet verified
+
+- No browser run of the new screens, because no frontend build has been approved.
+- No sign-in against real Google.
+
 ## Build decisions (2026-10-30)
 
 | Item | Decision |
 |---|---|
 | Base | Build from the specs on branch `v1-build`, created from `docs/spec-v1`. PR #1 is not waited on. |
 | Git | Full git library: go-git v5 |
-| Two-factor | Not in v1. Provided by Google sign-in in v2. |
+| Two-factor | Provided by Google sign-in (pulled into v1 on 2026-10-31) |
 | Inactivity sign-out | 30 minutes |
 | Rejected or cancelled change order | Affected items keep their status. Admin setting can return them to Draft. |
 | Approvals | Every assigned approver must approve |
@@ -200,7 +252,7 @@ On the VM: `docker compose pull && docker compose up -d`, then:
 | Time-series | InfluxDB in v3 of the release plan |
 | Packaging | Docker Compose: `init` (secrets), `designhub`, `postgres`, `proxy` (Caddy, self-signed HTTPS) |
 | Images | `ghcr.io/shwhat/designhub`, amd64 and arm64, published by GitHub Actions on every push to `main` |
-| Sign-in | Local accounts with Argon2id in v1; Google sign-in with two-factor in v2 once a domain with HTTPS exists |
+| Sign-in | Local accounts with Argon2id, and Google sign-in (OpenID Connect) limited to allowed domains and addresses. Signing PIN for Google users. |
 
 ## Current code on `main`
 
@@ -250,10 +302,11 @@ Done for PR #4 (2026-10-31):
 ### Next steps
 
 1. Devon pulls the new image and runs the retest list above.
-2. Get answers to the open bug questions (bugs 1, 3 and 4).
-3. For bug 3, agree a visual direction with Devon before any redesign, using the frontend-design guidance.
-4. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
-5. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
+2. Devon reviews and merges the Google sign-in pull request, then follows the Google sign-in setup and checks SGN-15 to SGN-24.
+3. Bug 3: restyle to match OpenSchem on a new branch.
+4. Bug 1: get the answer on "a much more robust pages setup".
+5. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
+6. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
 

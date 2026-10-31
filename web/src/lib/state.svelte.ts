@@ -26,6 +26,8 @@ export interface Me {
   spaces: SpaceRef[];
   csrf: string;
   canManageApprovers: boolean;
+  signInMethod: string;
+  signingPinSet: boolean;
 }
 
 export interface UserRef {

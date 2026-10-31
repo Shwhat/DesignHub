@@ -873,9 +873,9 @@ func (a *App) apiSignNCR(w http.ResponseWriter, r *http.Request) error {
 	if !u.Can(PermCOApprove) {
 		return errForbidden
 	}
-	if !a.checkUserPassword(ctx, u.ID, in.Password) {
+	if e := a.checkSignature(ctx, u, in.Password, "The decision was not recorded."); e != nil {
 		a.Audit(ctx, u, clientIP(r), "signature.failed", wi.ID, nil)
-		return &Error{Status: http.StatusUnauthorized, Code: "signature", Message: "Password is incorrect. The decision was not recorded."}
+		return e
 	}
 	err = a.tx(ctx, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE ncr_approvals SET decision = $3, decided_at = now(), comment = $4 WHERE ncr_id = $1 AND user_id = $2`, wi.ID, u.ID, in.Decision, strings.TrimSpace(in.Comment))

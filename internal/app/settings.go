@@ -40,6 +40,12 @@ func (a *App) Setting(key string, v any) {
 
 // SetSetting stores a setting and records it in the audit log.
 func (a *App) SetSetting(ctx context.Context, u *User, ip, key string, v any) error {
+	return a.setSettingAudited(ctx, u, ip, key, v, v)
+}
+
+// setSettingAudited stores v and records auditValue, for settings that hold
+// secrets.
+func (a *App) setSettingAudited(ctx context.Context, u *User, ip, key string, v, auditValue any) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -51,7 +57,7 @@ func (a *App) SetSetting(ctx context.Context, u *User, ip, key string, v any) er
 	a.settingsMu.Lock()
 	a.settings[key] = b
 	a.settingsMu.Unlock()
-	a.Audit(ctx, u, ip, "settings.change", "", map[string]any{"key": key, "value": v})
+	a.Audit(ctx, u, ip, "settings.change", "", map[string]any{"key": key, "value": auditValue})
 	return nil
 }
 

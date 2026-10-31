@@ -1176,9 +1176,9 @@ func (a *App) apiDecideCO(w http.ResponseWriter, r *http.Request) error {
 			return &Error{Status: http.StatusBadRequest, Code: "validation", Message: "This change order cannot be approved while validation errors exist.", Data: errs}
 		}
 	}
-	if !a.checkUserPassword(ctx, u.ID, in.Password) {
+	if e := a.checkSignature(ctx, u, in.Password, "The decision was not recorded."); e != nil {
 		a.Audit(ctx, u, clientIP(r), "signature.failed", c.ID, nil)
-		return &Error{Status: http.StatusUnauthorized, Code: "signature", Message: "Password is incorrect. The decision was not recorded."}
+		return e
 	}
 	err = a.tx(ctx, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE co_approvers SET decision = $3, decided_at = now(), comment = $4 WHERE co_id = $1 AND user_id = $2 AND decision = ''`,
@@ -1331,9 +1331,9 @@ func (a *App) apiReleaseCO(w http.ResponseWriter, r *http.Request) error {
 	if err := decode(r, &in); err != nil {
 		return err
 	}
-	if !a.checkUserPassword(ctx, u.ID, in.Password) {
+	if e := a.checkSignature(ctx, u, in.Password, "The change order was not released."); e != nil {
 		a.Audit(ctx, u, clientIP(r), "signature.failed", c.ID, nil)
-		return &Error{Status: http.StatusUnauthorized, Code: "signature", Message: "Password is incorrect. The change order was not released."}
+		return e
 	}
 	if err := a.ReleaseCO(ctx, u, clientIP(r), c.ID, in.Comment); err != nil {
 		return err
