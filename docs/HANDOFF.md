@@ -7,7 +7,7 @@ Purpose: everything needed to continue DesignHub in a new conversation. This doc
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. The Google sign-in pull request is open for review. The next steps are in the handoff.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. PR #6 (Google sign-in) is open for review. The next steps are in the handoff.
 
 ## Documents
 
@@ -48,7 +48,7 @@ All documents and code are on `main`.
 | 7. Devon merges PR #2 and installs on the VM | Complete |
 | 8. Devon tests with TEST-PLAN.md | In progress |
 | 9. Fix the bug list, one branch per fix or group of fixes | In progress. PR #4 merged. Bug 3 direction agreed. Bug 1 waits on Devon. |
-| 10. Google sign-in, pulled forward from v2 | Written on branch `google-signin`, pull request open for review |
+| 10. Google sign-in, pulled forward from v2 | Written on branch `google-signin`, PR #6 open for review |
 
 ## Pull request history
 
@@ -59,7 +59,7 @@ All documents and code are on `main`.
 | #3 | Update handoff with install state and bug list | 2026-10-31 |
 | #4 | Fix Library columns, phone search icon, banner spacing and svelte-check warnings | 2026-10-31 |
 | #5 | Update handoff | 2026-10-31 |
-| (open) | Google sign-in with allowed domains and addresses, signing PIN, recovery command | Not merged |
+| #6 | Google sign-in with allowed domains and addresses, signing PIN and recovery | Open |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
