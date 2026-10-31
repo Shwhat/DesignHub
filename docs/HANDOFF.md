@@ -1,6 +1,6 @@
 # DesignHub Handoff
 
-Date: 2026-10-30 (updated 21:50)
+Date: 2026-10-31
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
@@ -108,7 +108,7 @@ Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from
 | # | Report | Finding | State |
 |---|---|---|---|
 | 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. Ask Devon how the pages were created (screen, button, space) and whether they appear after a browser reload. The "more robust pages setup" request needs scoping with Devon: for example a New page button on the space home and page view, a page picker for the parent, templates, a full page list per space. | Open |
-| 2 | Parts do not show under Library. The item count goes up. | Reproduced: the table shows "10 of 10" with no columns or rows. Cause: `GET /api/prefs/{key}` returns `{"ok":true}` when the user has no saved preference (`apiGetPref` in `internal/app/users.go` calls `ok(w, nil)`), so `web/src/pages/Library.svelte` uses that object as its column list and draws no columns. Affects every user who has not saved Library columns, on every Library tab. Fix: return JSON `null` when no preference exists, and check `Array.isArray` in Library before using a saved column list. Check other `/api/prefs` readers for the same assumption. | Open, cause found |
+| 2 | Parts do not show under Library. The item count goes up. | Reproduced: the table shows "10 of 10" with no columns or rows. Cause: `GET /api/prefs/{key}` returns `{"ok":true}` when the user has no saved preference (`apiGetPref` in `internal/app/users.go` calls `ok(w, nil)`), so `web/src/pages/Library.svelte` uses that object as its column list and draws no columns. Affects every user who has not saved Library columns, on every Library tab. Fix: return JSON `null` when no preference exists, and check `Array.isArray` in Library before using a saved column list. Check other `/api/prefs` readers for the same assumption. | Fixed in PR #4, waiting for merge and retest. The work List view had the same fault and is fixed too. |
 | 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (currently text glyphs such as ▶ and ⋯), headers, tables, cards and empty states. Agree a visual direction with Devon first, using the frontend-design guidance. | Open |
 | 4 | "where" (message cut off) | Incomplete. Ask Devon for the rest. | Open, needs detail |
 
@@ -117,10 +117,6 @@ Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from
 | Issue | Where |
 |---|---|
 | The four editing modes, image paste and "/" block insert have not been driven in a browser; only page display is verified | `web/src/components/Editor.svelte` |
-| Search icon in the phone top bar is very small | `web/src/components/TopBar.svelte` |
-| Spacing around the baseline link in the released change order banner | `web/src/pages/ChangeOrderView.svelte` |
-| 22 svelte-check warnings (state captured at first value); harmless today because pages remount on route change | `web/src` |
-| `web/dist/.gitkeep` is deleted by every frontend build; restore it before committing | `web/vite.config.ts` |
 
 ## Build decisions (2026-10-30)
 
@@ -184,7 +180,7 @@ All nine build parts are implemented: server foundation, sign-in and admin, spac
 ### Next steps
 
 1. Get the missing detail for bug 1 and bug 4 from Devon, and agree the scope of "more robust pages" and the visual direction for bug 3.
-2. Fix bug 2 first; it blocks the Library checks in TEST-PLAN.md.
+2. Devon merges PR #4 (bug 2, phone search icon, banner spacing, svelte-check warnings, .gitkeep), pulls the new image and retests ITM-01 to ITM-04 and WRK-06.
 3. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
 4. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
