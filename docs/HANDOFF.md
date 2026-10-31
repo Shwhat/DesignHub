@@ -1,13 +1,13 @@
 # DesignHub Handoff
 
-Date: 2026-10-30
+Date: 2026-10-30 (updated 21:50)
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch v1-build, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is built on v1-build. The next step is testing with TEST-PLAN.md.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is merged and installed on my VM, and testing has started. The next step is the bug list in the handoff. Start by asking me about any bug list item that is incomplete.
 
 ## Documents
 
@@ -20,7 +20,7 @@ Paste this into the new chat:
 | `docs/FRONTEND.md` | Frontend framework and editor selection | v0.1, complete |
 | `docs/HANDOFF.md` | This document: rules, state, next steps, technical notes | Current |
 
-All documents and the v1 code are on branch `v1-build`.
+All documents and the v1 code are on `main` (PR #2, merged 2026-10-30).
 
 ## Project rules
 
@@ -43,8 +43,10 @@ All documents and the v1 code are on branch `v1-build`.
 | 3. Screen layouts | Complete |
 | 4. v1 test plan: what Devon will test and what "working" means | Complete |
 | 5. Proxmox host preparation | Not needed. DesignHub installs on an existing Docker host like OpenSchem. |
-| 6. Build v1 on branch `v1-build`, one pull request at the end | Complete |
-| 7. Devon reviews and merges `v1-build`, installs and runs TEST-PLAN.md | Next |
+| 6. Build v1 on branch `v1-build`, one pull request at the end | Complete (PR #2) |
+| 7. Devon merges PR #2 and installs on the VM | Complete |
+| 8. Devon tests with TEST-PLAN.md | In progress |
+| 9. Fix the bug list, one branch per fix or group of fixes | Next |
 
 ## Key decisions (detail in SPEC.md, DATA-MODEL.md and SCREENS.md)
 
@@ -93,11 +95,32 @@ All documents and the v1 code are on branch `v1-build`.
 
 | Item | Owner |
 |---|---|
-| Review and merge the `v1-build` pull request | Devon |
 | Meaning of "major update" for the Home layout reset (SCREENS.md section 17) | To be defined |
 | Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
 | Mail server for email notifications (v2) | Devon |
 | Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
+| Bug 4 in the bug list is incomplete ("where") | Devon |
+
+## Bug list
+
+Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from reproducing on a local server with the same build.
+
+| # | Report | Finding | State |
+|---|---|---|---|
+| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. Ask Devon how the pages were created (screen, button, space) and whether they appear after a browser reload. The "more robust pages setup" request needs scoping with Devon: for example a New page button on the space home and page view, a page picker for the parent, templates, a full page list per space. | Open |
+| 2 | Parts do not show under Library. The item count goes up. | Reproduced: the table shows "10 of 10" with no columns or rows. Cause: `GET /api/prefs/{key}` returns `{"ok":true}` when the user has no saved preference (`apiGetPref` in `internal/app/users.go` calls `ok(w, nil)`), so `web/src/pages/Library.svelte` uses that object as its column list and draws no columns. Affects every user who has not saved Library columns, on every Library tab. Fix: return JSON `null` when no preference exists, and check `Array.isArray` in Library before using a saved column list. Check other `/api/prefs` readers for the same assumption. | Open, cause found |
+| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (currently text glyphs such as ▶ and ⋯), headers, tables, cards and empty states. Agree a visual direction with Devon first, using the frontend-design guidance. | Open |
+| 4 | "where" (message cut off) | Incomplete. Ask Devon for the rest. | Open, needs detail |
+
+### Other known issues
+
+| Issue | Where |
+|---|---|
+| The four editing modes, image paste and "/" block insert have not been driven in a browser; only page display is verified | `web/src/components/Editor.svelte` |
+| Search icon in the phone top bar is very small | `web/src/components/TopBar.svelte` |
+| Spacing around the baseline link in the released change order banner | `web/src/pages/ChangeOrderView.svelte` |
+| 22 svelte-check warnings (state captured at first value); harmless today because pages remount on route change | `web/src` |
+| `web/dist/.gitkeep` is deleted by every frontend build; restore it before committing | `web/vite.config.ts` |
 
 ## Build decisions (2026-10-30)
 
@@ -128,7 +151,7 @@ All documents and the v1 code are on branch `v1-build`.
 | Images | `ghcr.io/shwhat/designhub`, amd64 and arm64, published by GitHub Actions on every push to `main` |
 | Sign-in | Local accounts with Argon2id in v1; Google sign-in with two-factor in v2 once a domain with HTTPS exists |
 
-## Current code on branch `v1-build`
+## Current code on `main`
 
 All nine build parts are implemented: server foundation, sign-in and admin, spaces and pages, engineering items, Bill of Design, change orders, work and NCRs, search and notifications, backup and restore.
 
@@ -153,11 +176,17 @@ All nine build parts are implemented: server foundation, sign-in and admin, spac
 - Backup, then restore of database, repository and attachments.
 - Key screens load in headless Chromium on desktop and phone width with no browser errors.
 
+### Install state
+
+- PR #2 merged into `main` on 2026-10-30; GitHub Actions published `ghcr.io/shwhat/designhub:latest`.
+- Devon installed it on the VM with Docker. The Super Admin is created with `docker compose exec -it designhub designhub setup-admin`; the install does not prompt for an account.
+
 ### Next steps
 
-1. Devon reviews the `v1-build` pull request and merges it into `main`. GitHub Actions then publishes the image.
-2. Devon installs on the Docker host with the README steps and runs TEST-PLAN.md.
-3. Failures are logged as GitHub issues with label `v1-test` and fixed on branches.
+1. Get the missing detail for bug 1 and bug 4 from Devon, and agree the scope of "more robust pages" and the visual direction for bug 3.
+2. Fix bug 2 first; it blocks the Library checks in TEST-PLAN.md.
+3. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
+4. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
 
