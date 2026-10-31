@@ -1,30 +1,31 @@
 # DesignHub Handoff
 
-Date: 2026-10-31
+Date: 2026-10-31 (updated 11:30)
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is merged and installed on my VM, and testing has started. The next step is the bug list in the handoff. Start by asking me about any bug list item that is incomplete.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. PR #4 (bug 2 and four smaller fixes) is merged. The next step is the open bug list in the handoff. Start by asking me the open questions listed there.
 
 ## Documents
 
 | Document | Contents | State |
 |---|---|---|
-| `docs/SPEC.md` | Product specification, decisions, v1/v2/v3 release plan | v0.2, complete |
-| `docs/DATA-MODEL.md` | Identification, links, revisions, storage, field lists | v0.1, complete |
-| `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.1, complete |
-| `docs/TEST-PLAN.md` | v1 test plan: checklist, phone and tablet checks, scenarios, seed data | v0.1, complete |
+| `docs/SPEC.md` | Product specification, decisions, v1/v2/v3 release plan | v0.3, complete |
+| `docs/DATA-MODEL.md` | Identification, links, revisions, storage, field lists | v0.2, complete |
+| `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.2, complete |
+| `docs/TEST-PLAN.md` | v1 test plan: checklist, phone and tablet checks, scenarios, seed data | v0.2, complete |
 | `docs/FRONTEND.md` | Frontend framework and editor selection | v0.1, complete |
-| `docs/HANDOFF.md` | This document: rules, state, next steps, technical notes | Current |
+| `docs/HANDOFF.md` | This document: rules, state, bug list, next steps, technical notes | Current |
 
-All documents and the v1 code are on `main` (PR #2, merged 2026-10-30).
+All documents and code are on `main`.
 
 ## Project rules
 
 - Do not build, compile or package the app until Devon says so. Writing code and docs is allowed when asked; building is not.
+- Exception approved 2026-10-31: Go tests (`go vet`, `go test`) and the frontend type-check (`svelte-check`) may be run to verify fixes. A frontend production build (`npm run build`) and the Go binary build still need Devon's approval.
 - Never use em dashes in any output, including code comments, UI text and docs.
 - The app shows only DesignHub branding. Only exception: the Google sign-in button.
 - Do not mention or include EPLAN.
@@ -46,7 +47,18 @@ All documents and the v1 code are on `main` (PR #2, merged 2026-10-30).
 | 6. Build v1 on branch `v1-build`, one pull request at the end | Complete (PR #2) |
 | 7. Devon merges PR #2 and installs on the VM | Complete |
 | 8. Devon tests with TEST-PLAN.md | In progress |
-| 9. Fix the bug list, one branch per fix or group of fixes | Next |
+| 9. Fix the bug list, one branch per fix or group of fixes | In progress. PR #4 merged. Bugs 1, 3 and 4 wait on Devon. |
+
+## Pull request history
+
+| PR | Title | Merged |
+|---|---|---|
+| #1 | DesignHub specification v0.1 | 2026-10-29 |
+| #2 | DesignHub version 1 | 2026-10-30 |
+| #3 | Update handoff with install state and bug list | 2026-10-31 |
+| #4 | Fix Library columns, phone search icon, banner spacing and svelte-check warnings | 2026-10-31 |
+
+The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
 ## Key decisions (detail in SPEC.md, DATA-MODEL.md and SCREENS.md)
 
@@ -91,6 +103,8 @@ All documents and the v1 code are on `main` (PR #2, merged 2026-10-30).
 | Pass criteria | Must checks must pass. Failed Should checks are logged as GitHub issues with label `v1-test`. |
 | Phone and tablet | Key screens only |
 
+No `v1-test` issues have been logged yet.
+
 ## Open items
 
 | Item | Owner |
@@ -99,7 +113,7 @@ All documents and the v1 code are on `main` (PR #2, merged 2026-10-30).
 | Domain name and HTTPS certificate (needed for Google sign-in) | Devon |
 | Mail server for email notifications (v2) | Devon |
 | Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
-| Bug 4 in the bug list is incomplete ("where") | Devon |
+| Answers to the open bug questions below | Devon |
 
 ## Bug list
 
@@ -107,16 +121,57 @@ Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from
 
 | # | Report | Finding | State |
 |---|---|---|---|
-| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. Ask Devon how the pages were created (screen, button, space) and whether they appear after a browser reload. The "more robust pages setup" request needs scoping with Devon: for example a New page button on the space home and page view, a page picker for the parent, templates, a full page list per space. | Open |
-| 2 | Parts do not show under Library. The item count goes up. | Reproduced: the table shows "10 of 10" with no columns or rows. Cause: `GET /api/prefs/{key}` returns `{"ok":true}` when the user has no saved preference (`apiGetPref` in `internal/app/users.go` calls `ok(w, nil)`), so `web/src/pages/Library.svelte` uses that object as its column list and draws no columns. Affects every user who has not saved Library columns, on every Library tab. Fix: return JSON `null` when no preference exists, and check `Array.isArray` in Library before using a saved column list. Check other `/api/prefs` readers for the same assumption. | Fixed in PR #4, waiting for merge and retest. The work List view had the same fault and is fixed too. |
-| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (currently text glyphs such as ▶ and ⋯), headers, tables, cards and empty states. Agree a visual direction with Devon first, using the frontend-design guidance. | Open |
-| 4 | "where" (message cut off) | Incomplete. Ask Devon for the rest. | Open, needs detail |
+| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Open, waiting on Devon (questions below) |
+| 2 | Parts do not show under Library. The item count goes up. | Cause: `GET /api/prefs/{key}` returned `{"ok":true}` when the user had no saved preference, so Library used that object as its column list and drew no columns. The work List view had the same fault. | Fixed in PR #4. Devon to retest. |
+| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. | Open, waiting on Devon to agree a visual direction |
+| 4 | "where" (message cut off) | Incomplete | Open, waiting on Devon |
+
+### Open questions for Devon
+
+These were asked on 2026-10-31 and not yet answered.
+
+| Bug | Question |
+|---|---|
+| 1 | How was the page created: the sidebar "+", the "..." menu "New child page", or somewhere else? |
+| 1 | Which space was it in? |
+| 1 | Did the page appear after a browser reload? |
+| 1 | What does "a much more robust pages setup" mean? Candidates: a New page button on the space home and page view, a parent page picker, templates, a full page list per space. |
+| 3 | Which visual direction? Agree this before any redesign work. |
+| 4 | What was the rest of the message after "where"? |
+
+### PR #4 detail
+
+| Item | Change | Files |
+|---|---|---|
+| Bug 2 | `apiGetPref` answers JSON `null` when no row exists. Library and WorkList use a saved column list only if it is a non-empty array. BOMView uses a saved collapse state only if it is an object. New test `TestPrefsUnsetIsNull` fails on the old code and passes on the fix. | `internal/app/users.go`, `internal/app/app_test.go`, `web/src/pages/Library.svelte`, `web/src/pages/WorkList.svelte`, `web/src/components/BOMView.svelte` |
+| Phone search icon | Text glyph replaced with a 20 px SVG magnifier matching the bell icon | `web/src/components/TopBar.svelte` |
+| Banner spacing | `.banner` changed from flex to normal text flow, so links and punctuation no longer get gaps. Fixes the released change order banner and the same gaps in item and page banners. Buttons inside banners get a small left margin. | `web/src/app.css` |
+| svelte-check warnings | All 22 cleared. One-time prop reads wrapped in `untrack`; behavior is unchanged because `App.svelte` remounts the page in `{#key route.path}`. Files `input` declared as state. `tabindex="-1"` on the menu. | 17 files under `web/src` |
+| `.gitkeep` | A Vite plugin writes `web/dist/.gitkeep` after every build | `web/vite.config.ts` |
+
+Not yet verified: the `.gitkeep` plugin, because no frontend build has been run since. Check that `web/dist/.gitkeep` exists after the next approved build.
+
+### Retest after pulling the PR #4 image
+
+On the VM: `docker compose pull && docker compose up -d`, then:
+
+| Check | What to confirm |
+|---|---|
+| ITM-01 | Library tabs and part columns show, with rows |
+| ITM-02 | Superseded and Obsolete toggle |
+| ITM-03 | Column choice kept after sign out and in |
+| ITM-04 | Saved filter kept |
+| WRK-06 | Work List shows columns; filter and column choice kept |
+| ASM-13 | BOM tree expansion remembered |
+| CO-12, CO-13 | Released change order banner and superseded revision banner read normally |
+| RSP-01 to RSP-11 | Phone top bar search icon size |
 
 ### Other known issues
 
 | Issue | Where |
 |---|---|
 | The four editing modes, image paste and "/" block insert have not been driven in a browser; only page display is verified | `web/src/components/Editor.svelte` |
+| `.gitkeep` plugin not yet exercised by a build | `web/vite.config.ts` |
 
 ## Build decisions (2026-10-30)
 
@@ -154,15 +209,23 @@ All nine build parts are implemented: server foundation, sign-in and admin, spac
 | Path | Contents |
 |---|---|
 | `cmd/designhub/` | Commands: `serve`, `init-secrets`, `setup-admin`, `seed`, `backup`, `restore`, `backups`, `healthcheck`, `version` |
-| `internal/app/` | HTTP API and business rules: sessions, CSRF, permissions, record locking, items and numbering, BOM, pages, change orders and signatures, work items and NCR workflow, notifications, live updates (Server-Sent Events), search, audit log, backups, scheduler, seed data |
+| `internal/app/` | HTTP API and business rules: sessions, CSRF, permissions, record locking, items and numbering, BOM, pages, change orders and signatures, work items and NCR workflow, notifications, live updates (Server-Sent Events), search, audit log, backups, scheduler, seed data, user preferences (`users.go`) |
 | `internal/model/` | Item format, identifiers, BOM rollup, validation |
 | `internal/repo/` | Git repository: commits, branches, merges, signed tags, history |
 | `internal/db/` | Connection and migrations (`migrations/0001_schema.sql`, `0002_initial_data.sql`) |
 | `internal/auth/`, `internal/config/`, `internal/secrets/` | Password hashing, environment settings, generated secrets |
-| `web/` | Svelte frontend: `src/pages/` one file per screen, `src/components/` shared parts, `src/lib/` API client, router and state |
+| `web/` | Svelte frontend: `src/App.svelte` routes and remounts each page per path, `src/pages/` one file per screen, `src/components/` shared parts, `src/lib/` API client, router and state, `src/app.css` shared styles |
 | `Dockerfile`, `docker-compose.yml`, `.github/workflows/docker.yml` | Image, deployment and CI |
 
-### Verification done in the build session
+### Frontend notes
+
+- User preferences are stored per user and key with `GET` and `PUT /api/prefs/{key}`. An unset key returns `null`. Keys in use: `library.cols.<tab>`, `worklist.work`, `worklist.ncr`, `board.work`, `board.ncr`, `mywork`, `editor.mode`, and a BOM tree key per assembly.
+- Every page component reads its route `params` once, wrapped in `untrack`. This is correct only because `App.svelte` remounts the page on every path change. If that `{#key}` is ever removed, those reads must become reactive.
+- Banners (`.banner`, `.banner.info`, `.banner.warn`) are plain text blocks. Put buttons inline in the text.
+
+### Verification
+
+Done in the build session (2026-10-30):
 
 - `go vet` clean; Go tests pass against PostgreSQL (`internal/app`, `internal/model`, `internal/repo`).
 - Frontend type-check has no errors; production build succeeds.
@@ -172,27 +235,67 @@ All nine build parts are implemented: server foundation, sign-in and admin, spac
 - Backup, then restore of database, repository and attachments.
 - Key screens load in headless Chromium on desktop and phone width with no browser errors.
 
+Done for PR #4 (2026-10-31):
+
+- `go vet` clean; all Go tests pass, including the new `TestPrefsUnsetIsNull`.
+- `svelte-check`: 0 errors, 0 warnings.
+- No frontend build and no browser check were run.
+
 ### Install state
 
-- PR #2 merged into `main` on 2026-10-30; GitHub Actions published `ghcr.io/shwhat/designhub:latest`.
-- Devon installed it on the VM with Docker. The Super Admin is created with `docker compose exec -it designhub designhub setup-admin`; the install does not prompt for an account.
+- PR #4 merged into `main` on 2026-10-31; GitHub Actions published the new `ghcr.io/shwhat/designhub:latest`.
+- The VM still runs the PR #2 image until Devon pulls.
+- The Super Admin is created with `docker compose exec -it designhub designhub setup-admin`; the install does not prompt for an account.
 
 ### Next steps
 
-1. Get the missing detail for bug 1 and bug 4 from Devon, and agree the scope of "more robust pages" and the visual direction for bug 3.
-2. Devon merges PR #4 (bug 2, phone search icon, banner spacing, svelte-check warnings, .gitkeep), pulls the new image and retests ITM-01 to ITM-04 and WRK-06.
-3. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
-4. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
+1. Devon pulls the new image and runs the retest list above.
+2. Get answers to the open bug questions (bugs 1, 3 and 4).
+3. For bug 3, agree a visual direction with Devon before any redesign, using the frontend-design guidance.
+4. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
+5. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
 
-These apply to Claude Code cloud sessions:
+These apply to Claude Code cloud sessions.
 
-- Go 1.24, Node.js 22 and PostgreSQL 16 are available. Start PostgreSQL with `pg_ctlcluster 16 main start` for the Go tests (`DESIGNHUB_TEST_DATABASE_URL`).
-- proxy.golang.org is blocked. All Go dependencies, including golang.org/x modules, are vendored; build with `-mod=vendor`.
+### Tools
+
+- Go 1.24, Node.js 22 and PostgreSQL 16 are available.
+- proxy.golang.org is blocked. All Go dependencies, including golang.org/x modules, are vendored; always pass `-mod=vendor`.
 - The npm registry is reachable. Docker is not available in the session, so images are built by GitHub Actions.
 - Playwright browser downloads are blocked; the `@sparticuz/chromium` npm package provides a headless Chromium for screen checks.
 - `setup-admin`, `seed` and `restore` require an interactive terminal.
+- `@types/node` is not installed, so `web/vite.config.ts` is not type-checked.
+
+### GitHub access
+
+- Ask for push access to `Shwhat/DesignHub` before cloning if a branch will be pushed. Clone into `/home/claude/designhub`.
+- `gh pr create` fails because GraphQL is blocked. Open pull requests with the REST API:
+  `gh api repos/Shwhat/DesignHub/pulls -f base=main -f head=<branch> -f title="<title>" -F body=@<file>`
+- The clone is shallow with a fetch refspec for `main` only. After pushing a new branch, add a refspec so the branch tracks its remote:
+  `git config --add remote.origin.fetch '+refs/heads/<branch>:refs/remotes/origin/<branch>'`, then `git fetch origin` and `git config branch.<branch>.remote origin` and `git config branch.<branch>.merge refs/heads/<branch>`.
+
+### Running the Go tests
+
+```
+pg_ctlcluster 16 main start
+su postgres -c "psql -c \"CREATE ROLE dh LOGIN SUPERUSER PASSWORD 'dh'\""
+su postgres -c "psql -c 'CREATE DATABASE dhtest OWNER dh'"
+export DESIGNHUB_TEST_DATABASE_URL='postgres://dh:dh@127.0.0.1:5432/dhtest?sslmode=disable'
+go vet -mod=vendor ./...
+go test -mod=vendor ./internal/...
+```
+
+Without `DESIGNHUB_TEST_DATABASE_URL` the `internal/app` tests are skipped and still report `ok`. Check with `-run <TestName> -v` that a test actually ran.
+
+### Frontend type-check
+
+```
+cd web && npm ci && npx svelte-check
+```
+
+### Build (only when Devon approves)
 
 ```
 cd web && npm ci && npm run build && cd ..
