@@ -5,10 +5,10 @@
   import { date, kindLabel } from '../lib/format';
   import Status from '../components/Status.svelte';
   import Modal from '../components/Modal.svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   let { params, pattern }: { params: any; pattern?: string } = $props();
-  const space = params.id;
-  const ncr = pattern?.includes('ncr');
+  const space = untrack(() => params.id);
+  const ncr = untrack(() => pattern?.includes('ncr'));
   setSpace(space);
   const allCols = [
     { key: 'id', label: 'ID' }, { key: 'type', label: 'Type' }, { key: 'title', label: 'Title' }, { key: 'status', label: 'Status' }, { key: 'priority', label: 'Priority' },
@@ -26,7 +26,7 @@
   const prefKey = 'worklist.' + (ncr ? 'ncr' : 'work');
   async function load() { rows = await get(`/api/spaces/${space}/work?type=${ncr ? 'ncr' : 'task,issue,action,epic'}`); }
   load();
-  get('/api/prefs/' + prefKey, { background: true }).then((p) => { if (p) cols = p; }).catch(() => {});
+  get('/api/prefs/' + prefKey, { background: true }).then((p) => { if (Array.isArray(p) && p.length) cols = p; }).catch(() => {});
   get('/api/filters?view=' + prefKey, { background: true }).then((s) => (saved = s)).catch(() => {});
   const off = onEvent((e) => { if (e.type === 'board' && e.space === space) load(); });
   onDestroy(() => off());

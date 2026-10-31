@@ -438,3 +438,21 @@ func TestPagesAndSpaces(t *testing.T) {
 	e.must("POST", "/api/pages", map[string]any{"space": "SP-0001", "parent": "PG-0002", "title": "Child"}, &out)
 	e.must("POST", "/api/pages/"+out["id"]+"/move", map[string]any{"parent": "", "index": 0, "title": "Moved child"}, nil)
 }
+
+// A preference that was never saved must read as JSON null, so the client
+// falls back to its defaults (bug 2: Library showed no columns).
+func TestPrefsUnsetIsNull(t *testing.T) {
+	c := signIn(t, "editor2")
+	var raw json.RawMessage
+	c.must("GET", "/api/prefs/library.cols.part.unset-test", nil, &raw)
+	if string(raw) != "null" {
+		t.Fatalf("unset preference: got %s, want null", raw)
+	}
+	cols := []string{"id", "name"}
+	c.must("PUT", "/api/prefs/library.cols.part.unset-test", cols, nil)
+	var got []string
+	c.must("GET", "/api/prefs/library.cols.part.unset-test", nil, &got)
+	if len(got) != 2 || got[0] != "id" || got[1] != "name" {
+		t.Fatalf("saved preference: got %v", got)
+	}
+}

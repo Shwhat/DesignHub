@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Modal from './Modal.svelte';
   import UserPicker from './UserPicker.svelte';
   import { put } from '../lib/api';
   import { session, toast } from '../lib/state.svelte';
   let { recordId, current, onclose, ondone }: { recordId: string; current: { id: string }[]; onclose: () => void; ondone: () => void } = $props();
-  let users: string[] = $state(current.map((u) => u.id));
+  let users: string[] = $state(untrack(() => current).map((u) => u.id));
   async function save(list: string[]) {
     try {
       await put(`/api/records/${encodeURIComponent(recordId)}/lock`, { users: list });

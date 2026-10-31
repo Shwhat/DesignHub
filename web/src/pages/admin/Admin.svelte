@@ -6,9 +6,10 @@
   import { loadLists } from '../../lib/lists.svelte';
   import Modal from '../../components/Modal.svelte';
   import Sortable from 'sortablejs';
-  import { tick, onDestroy } from 'svelte';
+  import { tick, onDestroy, untrack } from 'svelte';
   let { params }: { params: any; pattern?: string } = $props();
-  const section = params.section || (can('users.manage') ? 'users' : can('system.manage') ? 'system' : 'lists');
+  const userId = untrack(() => params.id);
+  const section = untrack(() => params.section) || (can('users.manage') ? 'users' : can('system.manage') ? 'system' : 'lists');
   const menu = [
     ['users', 'Users', 'users.manage'], ['roles', 'Roles', 'users.manage'], ['spaces', 'Spaces', 'spaces.manage'], ['manufacturers', 'Manufacturers', 'lists.manage'],
     ['lists', 'Lists', 'lists.manage'], ['signin', 'Sign-in message', 'users.manage'], ['audit', 'Audit log', 'audit.view'], ['system', 'System', 'system.manage'],
@@ -25,7 +26,7 @@
   async function loadUsersAdmin() { users = await get('/api/users'); }
   async function loadRoles() { const r = await get('/api/roles'); roles = r.roles; perms = r.permissions; }
   async function loadSpaces() { spaces = await get('/api/spaces'); }
-  if (section === 'users') { loadUsersAdmin(); loadRoles(); loadSpaces(); if (params.id) loadUser(params.id); }
+  if (section === 'users') { loadUsersAdmin(); loadRoles(); loadSpaces(); if (userId) loadUser(userId); }
   async function loadUser(id: string) { user = await get('/api/users/' + id); }
   async function createUser() {
     try { await post('/api/users', newUser); newUser = null; toast('User created.'); loadUsersAdmin(); loadUsers(); } catch (e: any) { toast(e.message, 'error'); }

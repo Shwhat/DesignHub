@@ -4,10 +4,10 @@
   import { canIn, toast, onEvent, session, setSpace, spaceName } from '../lib/state.svelte';
   import { navigate } from '../lib/router.svelte';
   import { date, kindLabel } from '../lib/format';
-  import { onDestroy, tick } from 'svelte';
+  import { onDestroy, tick, untrack } from 'svelte';
   let { params, pattern }: { params: any; pattern?: string } = $props();
-  const space = params.id;
-  const ncr = pattern?.includes('ncr');
+  const space = untrack(() => params.id);
+  const ncr = untrack(() => pattern?.includes('ncr'));
   setSpace(space);
   if (window.innerWidth <= 600) navigate(`/spaces/${space}/${ncr ? 'ncr-list' : 'list'}`, true);
 

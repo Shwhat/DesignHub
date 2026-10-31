@@ -6,9 +6,9 @@
   import Status from '../components/Status.svelte';
   import Modal from '../components/Modal.svelte';
   import RecordPicker from '../components/RecordPicker.svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   let { params }: { params: any; pattern?: string } = $props();
-  const id = params.id;
+  const id = untrack(() => params.id);
   let s: any = $state(null);
   let error = $state('');
   let pinOpen = $state(false);

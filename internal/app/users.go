@@ -714,7 +714,9 @@ func (a *App) apiGetPref(w http.ResponseWriter, r *http.Request) error {
 	var v json.RawMessage
 	err := a.DB.QueryRow(r.Context(), `SELECT value FROM user_prefs WHERE user_id = $1 AND key = $2`, userFrom(r).ID, r.PathValue("key")).Scan(&v)
 	if err == pgx.ErrNoRows {
-		return ok(w, nil)
+		// No saved preference: answer JSON null so callers fall back to defaults.
+		v = json.RawMessage("null")
+		err = nil
 	}
 	if err != nil {
 		return err

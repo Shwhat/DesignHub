@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { get, post } from '../lib/api';
   import { session, toast, can } from '../lib/state.svelte';
   import { navigate, route } from '../lib/router.svelte';
@@ -13,7 +14,7 @@
     { key: 'document', label: 'Document', desc: 'Drawing, specification or other controlled document' },
   ];
   let type = $state(route.query.get('type') || '');
-  let kind = $state(type === 'assembly' ? 'production' : '');
+  let kind = $state(untrack(() => type) === 'assembly' ? 'production' : '');
   let offers: Record<string, string> = $state({});
   let base = $state('');
   let suffix = $state('001');

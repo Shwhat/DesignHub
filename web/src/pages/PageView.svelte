@@ -14,10 +14,10 @@
   import LockDialog from '../components/LockDialog.svelte';
   import DiffView from '../components/DiffView.svelte';
   import UserPicker from '../components/UserPicker.svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
 
   let { params }: { params: any; pattern?: string } = $props();
-  const id = params.id;
+  const id = untrack(() => params.id);
   loadLists();
   let v: any = $state(null);
   let error = $state('');

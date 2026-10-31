@@ -6,7 +6,7 @@
   let { recordId, files = $bindable([]), editing = false, expected = [] }:
     { recordId: string; files: any[]; editing?: boolean; expected?: string[] } = $props();
   let roles: string[] = $state([]);
-  let input: HTMLInputElement;
+  let input: HTMLInputElement | undefined = $state();
   let busy = $state(false);
   let dragging = $state(false);
   $effect(() => {
@@ -60,7 +60,7 @@
   <div class="card card-body" style="margin-top: 0.75rem; text-align: center; border-style: dashed; {dragging ? 'border-color: var(--accent)' : ''}"
     ondragover={(e) => { e.preventDefault(); dragging = true; }} ondragleave={() => (dragging = false)}
     ondrop={(e) => { e.preventDefault(); dragging = false; if (e.dataTransfer?.files.length) add(e.dataTransfer.files); }}>
-    <button disabled={busy} onclick={() => input.click()}>{busy ? 'Uploading...' : 'Add files'}</button>
+    <button disabled={busy} onclick={() => input?.click()}>{busy ? 'Uploading...' : 'Add files'}</button>
     <span class="muted small"> or drop files here</span>
     <input type="file" multiple hidden bind:this={input} onchange={(e) => { const t = e.target as HTMLInputElement; if (t.files) add(t.files); t.value = ''; }} />
   </div>

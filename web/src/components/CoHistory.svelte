@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { get } from '../lib/api';
   import { dateTime } from '../lib/format';
   let { id }: { id: string } = $props();
   let rows: any[] = $state([]);
-  get(`/api/change-orders/${id}/history`).then((r) => (rows = r)).catch(() => {});
+  get(`/api/change-orders/${untrack(() => id)}/history`).then((r) => (rows = r)).catch(() => {});
   const labels: Record<string, string> = {
     'co.create': 'Created', 'co.update': 'Edited', 'co.item.add': 'Item added', 'co.item.remove': 'Item removed', 'co.approvers': 'Approvers changed',
     'co.submit': 'Submitted for review', 'co.withdraw': 'Returned to Draft', 'co.decision': 'Decision', 'co.state': 'State changed',

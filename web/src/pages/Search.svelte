@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { get, post, del } from '../lib/api';
   import { session, toast } from '../lib/state.svelte';
   import { route, setQuery, recordPath, navigate } from '../lib/router.svelte';
@@ -18,7 +19,7 @@
     results = r.results;
     searched = true;
   }
-  if (Object.values(f).some(Boolean)) run();
+  if (untrack(() => Object.values(f).some(Boolean))) run();
   get('/api/filters?view=search', { background: true }).then((s) => (saved = s)).catch(() => {});
   async function save() {
     const name = prompt('Name for this search');
