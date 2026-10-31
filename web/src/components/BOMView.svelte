@@ -25,7 +25,7 @@
     flat = startFlat;
     load();
     if (!compact) {
-      get('/api/prefs/' + encodeURIComponent(prefKey), { background: true }).then((v) => { if (v) collapsed = v; }).catch(() => {});
+      get('/api/prefs/' + encodeURIComponent(prefKey), { background: true }).then((v) => { if (v && typeof v === "object" && !Array.isArray(v)) collapsed = v; }).catch(() => {});
     }
   });
   const off = onEvent((e) => { if (e.type === 'record') load(); });

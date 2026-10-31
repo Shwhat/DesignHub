@@ -18,10 +18,10 @@
   import AddToCO from '../components/AddToCO.svelte';
   import LinksEditor from '../components/LinksEditor.svelte';
   import DiffView from '../components/DiffView.svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
 
   let { params }: { params: any; pattern?: string } = $props();
-  const id = params.id;
+  const id = untrack(() => params.id);
   let v: any = $state(null);
   let error = $state('');
   let tab = $state(route.query.get('tab') || 'details');

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import Modal from './Modal.svelte';
   import { get, post } from '../lib/api';
   import { toast, session } from '../lib/state.svelte';
@@ -8,7 +9,7 @@
   let cos: any[] = $state([]);
   let choice = $state('new');
   let title = $state('');
-  let action = $state(status === 'Draft' ? 'Release' : 'Revise');
+  let action = $state(untrack(() => status) === 'Draft' ? 'Release' : 'Revise');
   let busy = $state(false);
   get('/api/change-orders?filter=open').then((r: any[]) => (cos = r.filter((c) => c.state === 'Draft'))).catch(() => {});
   async function go() {

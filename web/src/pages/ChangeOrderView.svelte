@@ -13,10 +13,10 @@
   import LockDialog from '../components/LockDialog.svelte';
   import Modal from '../components/Modal.svelte';
   import CoHistory from '../components/CoHistory.svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
 
   let { params }: { params: any; pattern?: string } = $props();
-  const id = params.id;
+  const id = untrack(() => params.id);
   let d: any = $state(null);
   let error = $state('');
   let tab = $state(route.query.get('tab') || 'details');

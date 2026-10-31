@@ -242,7 +242,8 @@ th.sortable { cursor: pointer; user-select: none; }
 .props dt { color: var(--text-3); }
 .props dd { margin: 0; word-break: break-word; }
 @media (max-width: 600px) { .props { grid-template-columns: 1fr; gap: 0.1rem; } .props dd { margin-bottom: 0.6rem; } }
-.banner { padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.9rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.banner { padding: 0.6rem 0.9rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.9rem; line-height: 1.6; }
+.banner button { margin-left: 0.4rem; vertical-align: middle; }
 .banner.warn { background: var(--warn-soft); color: var(--warn); }
 .banner.info { background: var(--info-soft); color: var(--info); }
 .save-bar { position: sticky; top: calc(var(--topbar) + 0.5rem); z-index: 20; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius); padding: 0.6rem 0.8rem; margin-bottom: 1rem; box-shadow: var(--shadow-lg); display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }

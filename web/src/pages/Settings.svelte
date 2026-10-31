@@ -1,11 +1,12 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { get, patch, post } from '../lib/api';
   import { session, setMe, toast } from '../lib/state.svelte';
   import { navigate } from '../lib/router.svelte';
   import { dateTime, ago } from '../lib/format';
   import { HOME_SECTIONS, homeLayout } from '../lib/home';
   let { params }: { params: any; pattern?: string } = $props();
-  const section = params.section || 'profile';
+  const section = untrack(() => params.section) || 'profile';
   const me = session.me!;
   let p = $state({ displayName: me.displayName, email: me.email, timeZone: me.timeZone, editMode: me.editMode, theme: me.theme });
   let layout = $state(homeLayout(me.homeLayout));

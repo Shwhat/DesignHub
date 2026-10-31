@@ -14,6 +14,6 @@
   {#if open}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="menu" class:left role="menu" onclick={() => (open = false)}>{@render children()}</div>
+    <div class="menu" class:left role="menu" tabindex="-1" onclick={() => (open = false)}>{@render children()}</div>
   {/if}
 </div>

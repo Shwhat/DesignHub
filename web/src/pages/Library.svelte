@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { get, put, post, del } from '../lib/api';
   import { can, userName, spaceName, toast } from '../lib/state.svelte';
   import { navigate, route, setQuery } from '../lib/router.svelte';
@@ -33,12 +34,13 @@
     procedure: ['id', 'revision', 'title', 'status', 'owner', 'extra'],
     document: ['id', 'revision', 'title', 'status', 'owner', 'extra'],
   };
-  let tab = $state(params.tab || 'part');
+  const initialTab = untrack(() => params.tab) || 'part';
+  let tab = $state(initialTab);
   let rows: any[] = $state([]);
   let all = $state(route.query.get('all') === '1');
   let text = $state(route.query.get('q') || '');
   let status = $state(route.query.get('status') || '');
-  let cols: string[] = $state(defaults[params.tab || 'part'] || defaults.part);
+  let cols: string[] = $state(defaults[initialTab] || defaults.part);
   let colDialog = $state(false);
   let simple = $state(false);
   let saved: any[] = $state([]);
@@ -49,7 +51,7 @@
     rows = await get(`/api/library?kind=${tab}${all ? '&all=1' : ''}`);
   }
   async function loadPrefs() {
-    try { const c = await get('/api/prefs/library.cols.' + tab, { background: true }); cols = c || defaults[tab]; } catch { cols = defaults[tab]; }
+    try { const c = await get('/api/prefs/library.cols.' + tab, { background: true }); cols = Array.isArray(c) && c.length ? c : defaults[tab]; } catch { cols = defaults[tab]; }
     try { saved = await get('/api/filters?view=library', { background: true }); } catch {}
   }
   $effect(() => { tab; all; load(); });
