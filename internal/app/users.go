@@ -157,6 +157,7 @@ type User struct {
 	EditMode    string
 	TimeZone    string
 	Theme       string
+	SignIn      string // local or google
 	CSRF        string
 	SessionHash []byte
 }
@@ -204,8 +205,8 @@ func userFrom(r *http.Request) *User {
 func (a *App) loadUser(ctx context.Context, id string) (*User, error) {
 	u := &User{Spaces: map[string]*Role{}}
 	var roleID string
-	err := a.DB.QueryRow(ctx, `SELECT id::text, username, display_name, email, library_role_id::text, default_edit_mode, time_zone, theme
-		FROM users WHERE id = $1 AND active`, id).Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &roleID, &u.EditMode, &u.TimeZone, &u.Theme)
+	err := a.DB.QueryRow(ctx, `SELECT id::text, username, display_name, email, library_role_id::text, default_edit_mode, time_zone, theme, sign_in_method
+		FROM users WHERE id = $1 AND active`, id).Scan(&u.ID, &u.Username, &u.DisplayName, &u.Email, &roleID, &u.EditMode, &u.TimeZone, &u.Theme, &u.SignIn)
 	if err != nil {
 		return nil, err
 	}
@@ -238,6 +239,7 @@ type userRow struct {
 	LibraryRole string            `json:"libraryRole"`
 	Active      bool              `json:"active"`
 	LastSignIn  *time.Time        `json:"lastSignIn"`
+	SignIn      string            `json:"signInMethod"`
 	SpaceRoles  map[string]string `json:"spaceRoles,omitempty"`
 }
 
@@ -245,7 +247,7 @@ func (a *App) apiUsers(w http.ResponseWriter, r *http.Request) error {
 	// Every signed-in user may list people (for assignee and approver
 	// pickers); only user managers see the full administrative view.
 	u := userFrom(r)
-	rows, err := a.DB.Query(r.Context(), `SELECT u.id::text, u.username, u.display_name, u.email, ro.name, u.active, u.last_sign_in
+	rows, err := a.DB.Query(r.Context(), `SELECT u.id::text, u.username, u.display_name, u.email, ro.name, u.active, u.last_sign_in, u.sign_in_method
 		FROM users u JOIN roles ro ON ro.id = u.library_role_id ORDER BY lower(u.display_name)`)
 	if err != nil {
 		return err
@@ -254,7 +256,7 @@ func (a *App) apiUsers(w http.ResponseWriter, r *http.Request) error {
 	out := []userRow{}
 	for rows.Next() {
 		var x userRow
-		if err := rows.Scan(&x.ID, &x.Username, &x.DisplayName, &x.Email, &x.LibraryRole, &x.Active, &x.LastSignIn); err != nil {
+		if err := rows.Scan(&x.ID, &x.Username, &x.DisplayName, &x.Email, &x.LibraryRole, &x.Active, &x.LastSignIn, &x.SignIn); err != nil {
 			return err
 		}
 		if !u.Can(PermUsers) {
@@ -274,9 +276,9 @@ func (a *App) apiUser(w http.ResponseWriter, r *http.Request) error {
 		return errForbidden
 	}
 	var x userRow
-	err := a.DB.QueryRow(r.Context(), `SELECT u.id::text, u.username, u.display_name, u.email, ro.name, u.active, u.last_sign_in
+	err := a.DB.QueryRow(r.Context(), `SELECT u.id::text, u.username, u.display_name, u.email, ro.name, u.active, u.last_sign_in, u.sign_in_method
 		FROM users u JOIN roles ro ON ro.id = u.library_role_id WHERE u.id = $1`, r.PathValue("id")).
-		Scan(&x.ID, &x.Username, &x.DisplayName, &x.Email, &x.LibraryRole, &x.Active, &x.LastSignIn)
+		Scan(&x.ID, &x.Username, &x.DisplayName, &x.Email, &x.LibraryRole, &x.Active, &x.LastSignIn, &x.SignIn)
 	if err != nil {
 		return err
 	}
@@ -476,11 +478,11 @@ func (a *App) apiUpdateUser(w http.ResponseWriter, r *http.Request) error {
 func (a *App) ensureAnotherSuperAdmin(ctx context.Context, tx pgx.Tx, exceptID string) error {
 	var n int
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM users us JOIN roles ro ON ro.id = us.library_role_id
-		WHERE ro.name = $1 AND us.active AND us.sign_in_method = 'local' AND us.id <> $2`, RoleSuperAdmin, exceptID).Scan(&n); err != nil {
+		WHERE ro.name = $1 AND us.active AND us.id <> $2`, RoleSuperAdmin, exceptID).Scan(&n); err != nil {
 		return err
 	}
 	if n == 0 {
-		return badRequest("At least one active local Super Admin must remain.")
+		return badRequest("At least one active Super Admin must remain.")
 	}
 	return nil
 }
@@ -569,6 +571,7 @@ type profile struct {
 	Spaces      []spaceRef      `json:"spaces"`
 	CSRF        string          `json:"csrf"`
 	ManageAppr  bool            `json:"canManageApprovers"`
+	SignIn      string          `json:"signInMethod"`
 }
 
 type spaceRef struct {
@@ -583,7 +586,7 @@ type spaceRef struct {
 func (a *App) profileOf(ctx context.Context, u *User) (*profile, error) {
 	p := &profile{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, Email: u.Email, LibraryRole: u.Library.Name,
 		Permissions: u.Library.Permissions, EditMode: u.EditMode, TimeZone: u.TimeZone, Theme: u.Theme, CSRF: u.CSRF,
-		ManageAppr: u.Library.CanManageApprovers, Spaces: []spaceRef{}}
+		ManageAppr: u.Library.CanManageApprovers, SignIn: u.SignIn, Spaces: []spaceRef{}}
 	if err := a.DB.QueryRow(ctx, `SELECT home_layout, notify_events FROM users WHERE id = $1`, u.ID).Scan(&p.HomeLayout, &p.Notify); err != nil {
 		return nil, err
 	}
@@ -653,7 +656,11 @@ func (a *App) apiUpdateMe(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 	}
-	if in.Email != nil {
+	if in.Email != nil && !(u.SignIn == "google" && strings.EqualFold(strings.TrimSpace(*in.Email), u.Email)) {
+		// A Google account's email comes from Google.
+		if u.SignIn == "google" {
+			return badRequest("Your email comes from your Google account and cannot be changed here.")
+		}
 		if err := set("email", strings.TrimSpace(*in.Email)); err != nil {
 			return err
 		}

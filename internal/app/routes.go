@@ -9,6 +9,8 @@ func (a *App) routes(mux *http.ServeMux) {
 	// Sign-in and session
 	pub("GET /api/signin", a.apiSignInInfo)
 	pub("POST /api/signin", a.apiSignIn)
+	pub("GET /api/auth/google/start", a.apiGoogleStart)
+	pub("GET /api/auth/google/callback", a.apiGoogleCallback)
 	api("POST /api/signout", a.apiSignOut)
 	api("GET /api/me", a.apiMe)
 	api("PATCH /api/me", a.apiUpdateMe)
@@ -28,6 +30,8 @@ func (a *App) routes(mux *http.ServeMux) {
 	api("PATCH /api/roles/{id}", a.apiUpdateRole)
 	api("GET /api/admin/system", a.apiGetSystemSettings)
 	api("PUT /api/admin/system", a.apiPutSystemSettings)
+	api("GET /api/admin/google", a.apiGetGoogle)
+	api("PUT /api/admin/google", a.apiPutGoogle)
 	api("GET /api/admin/status", a.apiSystemStatus)
 	api("GET /api/admin/audit", a.apiAuditLog)
 	api("POST /api/admin/reindex", a.apiReindex)
