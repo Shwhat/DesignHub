@@ -18,6 +18,7 @@ Paste this into the new chat:
 | `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.2, complete |
 | `docs/TEST-PLAN.md` | v1 test plan: checklist, phone and tablet checks, scenarios, seed data | v0.2, complete |
 | `docs/FRONTEND.md` | Frontend framework and editor selection | v0.1, complete |
+| `docs/GOOGLE-SIGNIN-SETUP.md` | Operator guide: Google Cloud OAuth client and DesignHub Google sign-in settings | v0.1, complete |
 | `docs/HANDOFF.md` | This document: rules, state, bug list, next steps, technical notes | Current |
 
 All documents and code are on `main`.
@@ -114,7 +115,7 @@ No `v1-test` issues have been logged yet.
 |---|---|
 | Meaning of "major update" for the Home layout reset (SCREENS.md section 17) | To be defined |
 | Domain name and HTTPS certificate (needed for Google sign-in). Cloudflare Tunnel with an Origin CA certificate is set up per the DesignHub Docker Quick Guide. | Devon |
-| Google Cloud OAuth client for each installation (see Google sign-in setup below) | Devon |
+| Google Cloud OAuth client for each installation (docs/GOOGLE-SIGNIN-SETUP.md) | Devon |
 | Mail server for email notifications (v2) | Devon |
 | Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
 | Answers to the open bug questions below | Devon |
@@ -302,7 +303,7 @@ Done for PR #4 (2026-10-31):
 ### Next steps
 
 1. Devon pulls the new image and runs the retest list above.
-2. Devon reviews and merges the Google sign-in pull request, then follows the Google sign-in setup and checks SGN-15 to SGN-24.
+2. Devon reviews and merges PR #6, then follows docs/GOOGLE-SIGNIN-SETUP.md and checks SGN-15 to SGN-24.
 3. Bug 3: restyle to match OpenSchem on a new branch.
 4. Bug 1: get the answer on "a much more robust pages setup".
 5. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
