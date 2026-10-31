@@ -264,7 +264,7 @@ func (a *App) apiChangePassword(w http.ResponseWriter, r *http.Request) error {
 	return ok(w, nil)
 }
 
-// checkUserPassword verifies a password for electronic signatures. Failures
+// checkUserPassword verifies a local account password. Failures
 // count toward the sign-in limit.
 func (a *App) checkUserPassword(ctx context.Context, userID, pw string) bool {
 	var hash, name string

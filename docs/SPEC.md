@@ -144,15 +144,21 @@ Work items, change order records, comments and time entries can be exported to m
 
 | Method | Availability |
 |---|---|
-| Local accounts (username and password) | Always available |
-| Google sign-in | Available once DesignHub has a fixed HTTPS address |
+| Local accounts (username and password) | Available until a Super Admin turns off password sign-in |
+| Google sign-in | Available once DesignHub has a fixed HTTPS address and a Super Admin has configured it |
 
 - Passwords are hashed with Argon2id.
-- Two-factor authentication is provided through Google sign-in (version 2). Local accounts use password sign-in.
-- Google sign-in is restricted to the company's Google Workspace domain and, optionally, to specific Google groups.
-- An account is created automatically on first Google sign-in with a default role set by an Admin.
-- A disabled Google account can no longer sign in.
-- At least one local Super Admin account always exists, so an outage of Google or the internet cannot lock out administrators.
+- Two-factor authentication is provided through Google sign-in. Local accounts use password sign-in.
+- Google sign-in is configured per installation in Admin, System: OAuth client ID and secret, the public HTTPS address, allowed Google Workspace domains and allowed individual addresses. Nothing about the company is fixed in the software.
+- A domain entry admits only Google Workspace accounts of that domain, confirmed by Google's hosted domain claim. Personal Google accounts, such as gmail.com addresses, are admitted only when listed as individual addresses. The address must be verified by Google.
+- Google groups are not used in this version.
+- An account is created automatically on first Google sign-in with the Viewer library role and no space access. An Admin then assigns roles.
+- An existing account is linked to a Google account on its first Google sign-in when exactly one DesignHub account has that email address. Linking ends password sign-in for that account. If several accounts share the address, or it belongs to an account already linked to another Google account, sign-in is refused.
+- The email of a Google-linked account comes from Google and cannot be changed in Settings.
+- A disabled account, or an address no longer allowed, can no longer sign in.
+- A Super Admin who has signed in with Google can turn off password sign-in for every account, including Super Admins.
+- Recovery: the `designhub recovery` command on the server sets a new password for a named Super Admin and allows one password sign-in for that account within one hour, even when password sign-in is turned off.
+- Electronic signatures use the account password for local accounts and a signing PIN for Google accounts. Each Google user sets their PIN in Settings, Security. Changing it requires the current PIN. An Admin can clear a forgotten PIN, after which the user sets a new one.
 
 ### 5.2 Roles
 
@@ -328,7 +334,7 @@ Draft, In Review, Approved, Released, Rejected, Cancelled.
 - The review view shows every change the change order would make, compared with the current released data.
 - Approvers are assigned per change order. Users whose role permits it can add or remove approvers.
 - Each approval or rejection records the approver, time and comment.
-- An approver confirms their decision by re-entering their password (electronic signature).
+- An approver confirms their decision by re-entering their password, or their signing PIN for Google accounts (electronic signature).
 - Every assigned approver must approve. A single rejection rejects the change order.
 - The author cannot be the only approver.
 - When a change order is rejected or cancelled, its affected items keep their current status. An Admin setting can instead return them to Draft.
@@ -459,7 +465,7 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 | Area | Included |
 |---|---|
 | Deployment | Docker Compose on Proxmox, local network access |
-| Sign-in | Local accounts |
+| Sign-in | Local accounts, and Google sign-in limited to allowed domains and addresses |
 | Roles | Super Admin, Admin, Release Authority, Approver, Editor, Contributor, Viewer |
 | Spaces and Pages | Spaces, page tree, all four editing modes, Bill of Design and work list blocks, comments, history, controlled pages |
 | Engineering data | Requirements, parts, assemblies, procedures, documents, Bill of Design, where-used, traceability, validation, attachments, manufacturer list |
@@ -471,7 +477,6 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 
 ### 16.2 Version 2
 
-- Google sign-in with two-factor authentication (once the domain is in place)
 - Vendor and Contractor roles with company scoping and expiry
 - Custom roles and editable workflows
 - Sprints, milestones, timeline view and time tracking

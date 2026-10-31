@@ -151,7 +151,8 @@
         <table class="data"><tbody>{#each spaces as s}<tr><td>{s.name}</td><td><select style="width: auto" value={user.spaceRoles[s.id] || ''} onchange={(e) => updateUser({ spaceRoles: { [s.id]: (e.target as HTMLSelectElement).value } })}><option value="">No access</option>{#each roles as r}<option>{r.name}</option>{/each}</select></td></tr>{/each}</tbody></table>
         {#if user.signInMethod === 'google'}
           <h3 style="margin-top: 1.25rem">Sign-in</h3>
-          <p class="small muted">Signs in with Google as {user.email}.</p>
+          <p class="small muted">Signs in with Google as {user.email}. Signing PIN {user.signingPinSet ? 'set' : 'not set'}.</p>
+          {#if user.signingPinSet}<button onclick={() => confirm(`Clear the signing PIN for ${user.username}? They must set a new one before signing.`) && updateUser({ clearSigningPin: true }, 'Signing PIN cleared.')}>Clear signing PIN</button>{/if}
         {:else}
         <h3 style="margin-top: 1.25rem">Password reset</h3>
         <div class="row"><input type="password" style="max-width: 260px" placeholder="New password" autocomplete="new-password" bind:value={resetPw} /><button disabled={resetPw.length < 10} onclick={() => { updateUser({ password: resetPw }, 'Password reset. The user was signed out.'); resetPw = ''; }}>Reset password</button></div>

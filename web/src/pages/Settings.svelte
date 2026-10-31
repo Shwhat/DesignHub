@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { get, patch, post } from '../lib/api';
-  import { session, setMe, toast } from '../lib/state.svelte';
+  import { get, patch, post, put } from '../lib/api';
+  import { session, setMe, toast, refreshMe } from '../lib/state.svelte';
   import { navigate } from '../lib/router.svelte';
   import { dateTime, ago } from '../lib/format';
   import { HOME_SECTIONS, homeLayout } from '../lib/home';
@@ -23,6 +23,13 @@
     try { await post('/api/me/password', { current: pw.current, new: pw.new }); pw = { current: '', new: '', repeat: '' }; toast('Password changed. Other devices were signed out.'); }
     catch (e: any) { toast(e.message, 'error'); }
   }
+  let pin = $state({ current: '', new: '', repeat: '' });
+  let pinSet = $state(!!me.signingPinSet);
+  async function setPin() {
+    if (pin.new !== pin.repeat) { toast('The new PINs do not match.', 'error'); return; }
+    try { await put('/api/me/signing-pin', { current: pin.current, new: pin.new }); toast(pinSet ? 'Signing PIN changed.' : 'Signing PIN set.'); pin = { current: '', new: '', repeat: '' }; pinSet = true; await refreshMe(); }
+    catch (e: any) { toast(e.message, 'error'); }
+  }
   async function loadSessions() { sessions = await get('/api/me/sessions'); }
   if (section === 'security') loadSessions();
   function move(i: number, d: number) { const l = [...layout]; const j = i + d; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; layout = l; }
@@ -42,6 +49,12 @@
       {#if me.signInMethod === 'google'}
         <h3>Sign-in</h3>
         <p class="small muted">You sign in with your Google account, {me.email}. Password and two-step settings are managed in your Google account.</p>
+        <h3 style="margin-top: 1.25rem">Signing PIN</h3>
+        <p class="small muted">Approvals, releases and NCR decisions are signed with this PIN. {pinSet ? 'If you forget it, an administrator can clear it so you can set a new one.' : 'Set one before your first signature.'}</p>
+        {#if pinSet}<div class="field"><label for="pinc">Current PIN</label><input id="pinc" type="password" autocomplete="off" bind:value={pin.current} /></div>{/if}
+        <div class="field"><label for="pinn">New PIN (6 to 64 characters)</label><input id="pinn" type="password" autocomplete="off" bind:value={pin.new} /></div>
+        <div class="field"><label for="pinr">Repeat new PIN</label><input id="pinr" type="password" autocomplete="off" bind:value={pin.repeat} /></div>
+        <div class="row end"><button class="primary" disabled={!pin.new || (pinSet && !pin.current)} onclick={setPin}>{pinSet ? 'Change PIN' : 'Set PIN'}</button></div>
       {:else}
       <h3>Change password</h3>
       <div class="field"><label for="pc">Current password</label><input id="pc" type="password" autocomplete="current-password" bind:value={pw.current} /></div>

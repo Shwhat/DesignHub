@@ -149,6 +149,16 @@ Seed user names (`editor1`, `appr2` and so on), records and expected values are 
 | SGN-12 | Admin disables `viewer1`, then `viewer1` tries to sign in | Sign-in refused with the standard message | Must |
 | SGN-13 | `editor1` changes password | Old password refused, new password accepted | Must |
 | SGN-14 | Admin resets the password of `contrib1` | `contrib1` signs in with the new password | Must |
+| SGN-15 | Super Admin enters the Google client ID, secret, public address and an allowed domain in Admin, System, then turns on Google sign-in | Sign-in screen shows "Sign in with Google" | Must |
+| SGN-16 | Sign in with Google using a new address in the allowed domain | Account created as Viewer with no spaces; returns to the page that was requested | Must |
+| SGN-17 | Sign in with Google using a personal account or another domain | Returned to sign-in with "not allowed" message; no account created | Must |
+| SGN-18 | Add a personal address to the allowed individual addresses and sign in with it | Sign-in succeeds | Must |
+| SGN-19 | Set the Super Admin's email to their Google address, then sign in with Google | Signs in to the existing Super Admin account; Settings, Security shows the signing PIN section | Must |
+| SGN-20 | Super Admin turns off password sign-in, then `editor1` tries a password | "Password sign-in is turned off. Sign in with Google." | Must |
+| SGN-21 | Run `docker compose exec -it designhub designhub recovery` for the Super Admin, then use "Recovery sign-in" | One password sign-in succeeds; a second one is refused | Must |
+| SGN-22 | Remove a domain from the allowed list, then a user of that domain signs in with Google | Refused with the "not allowed" message | Must |
+| SGN-23 | Google user approves a change order without a signing PIN, sets one in Settings, Security, then approves | First attempt sends them to Settings; second is recorded | Must |
+| SGN-24 | Admin clears a Google user's signing PIN | The old PIN is refused; the user can set a new one | Should |
 
 ### 7.3 Roles and access (ROL)
 

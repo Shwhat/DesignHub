@@ -15,6 +15,7 @@ func (a *App) routes(mux *http.ServeMux) {
 	api("GET /api/me", a.apiMe)
 	api("PATCH /api/me", a.apiUpdateMe)
 	api("POST /api/me/password", a.apiChangePassword)
+	api("PUT /api/me/signing-pin", a.apiSetSigningPin)
 	api("GET /api/me/sessions", a.apiSessions)
 	api("POST /api/me/sessions/signout-others", a.apiSignOutOthers)
 	api("GET /api/prefs/{key}", a.apiGetPref)

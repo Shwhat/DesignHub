@@ -240,6 +240,7 @@ type userRow struct {
 	Active      bool              `json:"active"`
 	LastSignIn  *time.Time        `json:"lastSignIn"`
 	SignIn      string            `json:"signInMethod"`
+	PinSet      bool              `json:"signingPinSet"`
 	SpaceRoles  map[string]string `json:"spaceRoles,omitempty"`
 }
 
@@ -276,9 +277,9 @@ func (a *App) apiUser(w http.ResponseWriter, r *http.Request) error {
 		return errForbidden
 	}
 	var x userRow
-	err := a.DB.QueryRow(r.Context(), `SELECT u.id::text, u.username, u.display_name, u.email, ro.name, u.active, u.last_sign_in, u.sign_in_method
+	err := a.DB.QueryRow(r.Context(), `SELECT u.id::text, u.username, u.display_name, u.email, ro.name, u.active, u.last_sign_in, u.sign_in_method, u.signing_pin_hash <> ''
 		FROM users u JOIN roles ro ON ro.id = u.library_role_id WHERE u.id = $1`, r.PathValue("id")).
-		Scan(&x.ID, &x.Username, &x.DisplayName, &x.Email, &x.LibraryRole, &x.Active, &x.LastSignIn, &x.SignIn)
+		Scan(&x.ID, &x.Username, &x.DisplayName, &x.Email, &x.LibraryRole, &x.Active, &x.LastSignIn, &x.SignIn, &x.PinSet)
 	if err != nil {
 		return err
 	}
@@ -306,6 +307,8 @@ type userInput struct {
 	LibraryRole string            `json:"libraryRole"`
 	Active      *bool             `json:"active"`
 	SpaceRoles  map[string]string `json:"spaceRoles"`
+
+	ClearSigningPin bool `json:"clearSigningPin"`
 }
 
 // CreateUser creates a local account. by may be nil for the setup command.
@@ -464,6 +467,12 @@ func (a *App) apiUpdateUser(w http.ResponseWriter, r *http.Request) error {
 			}
 			changes["password"] = "reset"
 		}
+		if in.ClearSigningPin {
+			if _, err := tx.Exec(ctx, `UPDATE users SET signing_pin_hash = '' WHERE id = $1`, id); err != nil {
+				return err
+			}
+			changes["signingPin"] = "cleared"
+		}
 		if len(changes) > 0 {
 			a.auditQ(ctx, tx, u, clientIP(r), "user.update", "", map[string]any{"userId": id, "changes": changes})
 		}
@@ -572,6 +581,7 @@ type profile struct {
 	CSRF        string          `json:"csrf"`
 	ManageAppr  bool            `json:"canManageApprovers"`
 	SignIn      string          `json:"signInMethod"`
+	PinSet      bool            `json:"signingPinSet"`
 }
 
 type spaceRef struct {
@@ -587,7 +597,7 @@ func (a *App) profileOf(ctx context.Context, u *User) (*profile, error) {
 	p := &profile{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, Email: u.Email, LibraryRole: u.Library.Name,
 		Permissions: u.Library.Permissions, EditMode: u.EditMode, TimeZone: u.TimeZone, Theme: u.Theme, CSRF: u.CSRF,
 		ManageAppr: u.Library.CanManageApprovers, SignIn: u.SignIn, Spaces: []spaceRef{}}
-	if err := a.DB.QueryRow(ctx, `SELECT home_layout, notify_events FROM users WHERE id = $1`, u.ID).Scan(&p.HomeLayout, &p.Notify); err != nil {
+	if err := a.DB.QueryRow(ctx, `SELECT home_layout, notify_events, signing_pin_hash <> '' FROM users WHERE id = $1`, u.ID).Scan(&p.HomeLayout, &p.Notify, &p.PinSet); err != nil {
 		return nil, err
 	}
 	rows, err := a.DB.Query(ctx, `SELECT id, name, archived, home_page_id FROM spaces ORDER BY lower(name)`)

@@ -533,8 +533,10 @@ All work item common fields, with Status following section 4.6, plus:
 | Username | Text | Yes | Unique |
 | Display name | Text | Yes | |
 | Email | Email | Yes | |
-| Sign-in method | Choice | Yes | Local (v1), Google (v2) |
-| Password | Hash | Local only | Argon2id |
+| Sign-in method | Choice | Yes | Local or Google |
+| Password | Hash | Local only | Argon2id. Cleared when the account is linked to Google. |
+| Google account | Text | Google only | Google subject identifier, unique |
+| Signing PIN | Hash | Google only | Argon2id. Used for electronic signatures. |
 | Library role | Role | Yes | |
 | Space roles | Space and role list | No | |
 | Default editing mode | Choice | Yes | Visual, Split, Source, Preview toggle |

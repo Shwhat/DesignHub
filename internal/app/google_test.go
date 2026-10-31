@@ -163,6 +163,46 @@ func TestGoogleSignIn(t *testing.T) {
 	if loc != "/library" || n != 1 {
 		t.Fatalf("second sign-in: %q, %d accounts", loc, n)
 	}
+	// Google users sign with a signing PIN.
+	gu, err := testApp.loadUser(ctx, me.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := testApp.checkSignature(ctx, gu, "", "Not done."); e == nil || e.Code != "signing_pin_missing" {
+		t.Fatalf("signature without a PIN: %v", e)
+	}
+	if st := c.do("PUT", "/api/me/signing-pin", map[string]any{"new": "123456"}, nil); st != 400 {
+		t.Fatalf("PIN that is a run of digits: %d", st)
+	}
+	c.must("PUT", "/api/me/signing-pin", map[string]any{"new": "4817-29"}, nil)
+	c.must("GET", "/api/me", nil, &me)
+	if !me.PinSet {
+		t.Fatal("PIN not reported as set")
+	}
+	if e := testApp.checkSignature(ctx, gu, "wrong-pin", "Not done."); e == nil || e.Message != "Signing PIN is incorrect. Not done." {
+		t.Fatalf("wrong PIN: %v", e)
+	}
+	if e := testApp.checkSignature(ctx, gu, "4817-29", "Not done."); e != nil {
+		t.Fatalf("right PIN: %v", e)
+	}
+	if st := c.do("PUT", "/api/me/signing-pin", map[string]any{"current": "wrong-pin", "new": "5928-30"}, nil); st != 401 {
+		t.Fatalf("change PIN with the wrong current PIN: %d", st)
+	}
+	c.must("PUT", "/api/me/signing-pin", map[string]any{"current": "4817-29", "new": "5928-30"}, nil)
+	sa.must("PATCH", "/api/users/"+me.ID, map[string]any{"clearSigningPin": true}, nil)
+	if e := testApp.checkSignature(ctx, gu, "5928-30", "Not done."); e == nil || e.Code != "signing_pin_missing" {
+		t.Fatalf("signature after the PIN was cleared: %v", e)
+	}
+	testApp.Limiter.Reset("user:new.person")
+	// Local accounts keep signing with their password.
+	ed, _ := testApp.loadUser(ctx, userID(t, "editor1"))
+	if e := testApp.checkSignature(ctx, ed, seedPW, "Not done."); e != nil {
+		t.Fatalf("local password signature: %v", e)
+	}
+	if st := signIn(t, "editor1").do("PUT", "/api/me/signing-pin", map[string]any{"new": "4817-29"}, nil); st != 400 {
+		t.Fatalf("local account sets a PIN: %d", st)
+	}
+
 	// A personal account using the company address as its email has no
 	// Workspace domain claim and is refused.
 	fg.claims("g-personal", "someone@standardarray.space", "", "Someone")
@@ -243,4 +283,13 @@ func TestGoogleSignIn(t *testing.T) {
 		t.Fatalf("second recovery sign-in: %d", st)
 	}
 	testApp.Limiter.Reset("ip:127.0.0.1", "user:superadmin", "user:editor1")
+}
+
+func userID(t *testing.T, username string) string {
+	t.Helper()
+	var id string
+	if err := testApp.DB.QueryRow(context.Background(), `SELECT id::text FROM users WHERE username = $1`, username).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return id
 }

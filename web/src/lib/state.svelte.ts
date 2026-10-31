@@ -27,6 +27,7 @@ export interface Me {
   csrf: string;
   canManageApprovers: boolean;
   signInMethod: string;
+  signingPinSet: boolean;
 }
 
 export interface UserRef {
