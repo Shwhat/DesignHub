@@ -208,8 +208,8 @@ A markdown editor with markdown and WYSIWYG tabs.
 | Drag and drop (board, BOM lines, page tree, lists) | SortableJS | MIT |
 | Markdown rendering for preview and page view | remark and rehype, matching Milkdown's parser | MIT |
 | HTML sanitizing of rendered markdown | DOMPurify | Apache 2.0 or MPL 2.0 |
-| Icons | A bundled open icon set (for example Lucide) | ISC |
-| Fonts | Bundled open fonts (for example Inter) | SIL Open Font License |
+| Icons | Inline SVG icons drawn in the OpenSchem style (`web/src/lib/icons.ts`) | Part of DesignHub |
+| Fonts | The device's system font (Segoe UI, system-ui, Arial), as in OpenSchem; no font files | None |
 
 Live updates from other users use Server-Sent Events from the Go server. This is a browser feature and needs no library.
 

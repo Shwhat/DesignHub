@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { get, patch, post, ApiError } from '../lib/api';
   import { session, toast, onEvent, setSpace, spaceName } from '../lib/state.svelte';
   import { navigate, route, setQuery, recordPath, setLeaveGuard } from '../lib/router.svelte';
@@ -93,7 +94,7 @@
             {#each d.transitions as t}<option value={t}>Move to {t}</option>{/each}
           </select>
         {:else}<Status value={d.item.status} />{/if}
-        {#if d.lock.length}<span class="pill">🔒</span>{/if}
+        {#if d.lock.length}<span class="pill" title="Locked to an access list"><Icon name="lock" size={12} /></span>{/if}
       </div>
       <h1>{d.item.title}</h1>
       {#if d.progress}<div class="row small" style="margin-top: 0.4rem"><div class="progress" style="width: 200px"><div style="width: {d.progress.percent}%"></div></div>{d.progress.percent}% ({d.progress.done} of {d.progress.total} done)</div>{/if}

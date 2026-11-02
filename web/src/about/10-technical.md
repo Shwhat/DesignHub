@@ -33,7 +33,6 @@
 | CodeMirror | Source editor | MIT |
 | unified, remark, rehype | Markdown rendering and sanitizing | MIT |
 | SortableJS | Drag and drop | MIT |
-| Inter (Fontsource) | Typeface | SIL Open Font License 1.1 |
 | PostgreSQL | Database | PostgreSQL License |
 | Caddy | HTTPS proxy | Apache 2.0 |
 | Alpine Linux | Container base | Various open source licenses |

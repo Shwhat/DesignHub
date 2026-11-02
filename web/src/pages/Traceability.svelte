@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { get } from '../lib/api';
   import Status from '../components/Status.svelte';
   import RecordPicker from '../components/RecordPicker.svelte';
@@ -13,7 +14,7 @@
 <div class="content">
   <h1>Traceability</h1>
   <div class="row" style="margin-bottom: 1rem">
-    {#if item}<span class="chip">Assembly {item}<button aria-label="Clear" onclick={() => (item = '')}>✕</button></span>{:else}<div style="width: 300px"><RecordPicker kinds="assembly,part" placeholder="Limit to an assembly" onpick={(id) => (item = id)} /></div>{/if}
+    {#if item}<span class="chip">Assembly {item}<button aria-label="Clear" onclick={() => (item = '')}><Icon name="remove" size={14} /></button></span>{:else}<div style="width: 300px"><RecordPicker kinds="assembly,part" placeholder="Limit to an assembly" onpick={(id) => (item = id)} /></div>{/if}
     <select style="width: auto" bind:value={cov} aria-label="Coverage"><option value="">Any coverage</option><option>Complete</option><option>No test</option><option>No design</option><option>No design and no test</option></select>
   </div>
   <div class="card table-wrap"><table class="data">

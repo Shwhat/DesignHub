@@ -2,6 +2,14 @@
 
 The installed version is shown at the top of this guide.
 
+## 1.2.1 (2026-11-01): New look
+
+- DesignHub now shares OpenSchem's look: the same colors, light and dark themes, type sizes, spacing, buttons, menus, dialogs and lists.
+- The top bar is dark, matching OpenSchem's menu bar.
+- Text symbols used as icons are replaced by drawn icons, including the sidebar, page tree, work item types, sorting, locks and close buttons.
+- Desktop screens are more compact. Phones and tablets keep larger touch targets.
+- The interface uses the device's own font instead of a bundled typeface.
+
 ## 1.2.0 (2026-11-01): About guide
 
 - New About guide, reachable from the sidebar and the profile menu, describing what DesignHub does, the rules it follows and its record specifications.

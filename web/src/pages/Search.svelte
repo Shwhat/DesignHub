@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { untrack } from 'svelte';
   import { get, post, del } from '../lib/api';
   import { session, toast } from '../lib/state.svelte';
@@ -51,7 +52,7 @@
       <div class="field"><label for="fl">Label</label><input id="fl" bind:value={f.label} onchange={run} /></div>
       {#if saved.length}
         <div class="nav-section" style="padding: 0">Saved searches</div>
-        {#each saved as s}<div class="row"><button class="ghost small" onclick={() => { f = { ...f, ...s.filter }; run(); }}>{s.name}</button><span class="spacer"></span><button class="ghost small" aria-label="Delete" onclick={async () => { await del('/api/filters/' + s.id); saved = saved.filter((x) => x.id !== s.id); }}>✕</button></div>{/each}
+        {#each saved as s}<div class="row"><button class="ghost small" onclick={() => { f = { ...f, ...s.filter }; run(); }}>{s.name}</button><span class="spacer"></span><button class="ghost small" aria-label="Delete" onclick={async () => { await del('/api/filters/' + s.id); saved = saved.filter((x) => x.id !== s.id); }}><Icon name="remove" size={14} /></button></div>{/each}
       {/if}
     </aside>
     <div style="min-width: 0">

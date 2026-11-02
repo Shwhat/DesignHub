@@ -40,8 +40,8 @@
 | Top bar | Search, notifications bell, profile menu |
 | Left sidebar | Home, My Work, Library, Change orders, Search, Notifications, About, space switcher, page tree and Work entries of the current space |
 | Devices | Desktop, tablet and phone, with responsive layouts for all three in version 1 |
-| Theme | Light and dark, chosen in user settings, with a follow-device option |
-| Density | Comfortable |
+| Theme | Light and dark, chosen in user settings, with a follow-device option. Colors, typography, components and icon style follow the OpenSchem design guide. |
+| Density | Compact on desktop, following the OpenSchem design guide. Larger touch targets on phones and tablets. |
 | Branding | DesignHub only |
 
 ### 1.1 Common record layout

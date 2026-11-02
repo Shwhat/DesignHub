@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import Sortable from 'sortablejs';
   import { get, post, put } from '../lib/api';
   import { canIn, toast, onEvent, session, setSpace, spaceName } from '../lib/state.svelte';
@@ -55,7 +56,6 @@
   });
   function laneOf(r: any) { return lanes === 'assignee' ? r.assignee || 'Unassigned' : lanes === 'epic' ? r.epic || 'No epic' : lanes === 'priority' ? r.priority : ''; }
   function savePrefs() { put('/api/prefs/board.' + (ncr ? 'ncr' : 'work'), { lanes }).catch(() => {}); tick().then(bind); }
-  const icon: Record<string, string> = { task: '☑', issue: '⚠', action: '➜', epic: '◆', ncr: '✖' };
 </script>
 
 <div class="content" style="max-width: none">
@@ -76,7 +76,7 @@
           <div class="column-body" data-status={st} data-lane={lane}>
             {#each cards as c (c.id)}
               <div class="wcard" data-id={c.id} role="button" tabindex="0" onclick={() => navigate('/work/' + c.id)} onkeydown={(e) => e.key === 'Enter' && navigate('/work/' + c.id)}>
-                <div class="row small"><span title={kindLabel(c.type)}>{icon[c.type]}</span><span class="id">{c.id}</span><span class="spacer"></span><span class="pill">{c.priority}</span></div>
+                <div class="row small"><Icon name={c.type} size={14} title={kindLabel(c.type)} /><span class="id">{c.id}</span><span class="spacer"></span><span class="pill">{c.priority}</span></div>
                 <div class="t">{c.title}</div>
                 <div class="row small muted">{c.assignee || 'Unassigned'}<span class="spacer"></span>{#if c.dueDate}<span style={c.overdue ? 'color: var(--danger); font-weight: 600' : ''}>{date(c.dueDate)}</span>{/if}{#if c.blocked}<span class="status Blocked">blocked</span>{/if}</div>
               </div>

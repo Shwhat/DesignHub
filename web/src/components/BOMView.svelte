@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { get } from '../lib/api';
   import { qty } from '../lib/format';
   import Status from './Status.svelte';
@@ -72,7 +73,7 @@
           {#each rows(data.tree) as r (r.path)}
             <tr class="bom-row">
               <td style="padding-left: {0.75 + (r.level - 1) * 1.1}rem">
-                {#if r.children?.length}<button class="twisty" aria-label={collapsed[r.path] ? 'Expand' : 'Collapse'} onclick={() => toggle(r.path)}>{collapsed[r.path] ? '▶' : '▼'}</button>{/if}
+                {#if r.children?.length}<button class="twisty" aria-label={collapsed[r.path] ? 'Expand' : 'Collapse'} onclick={() => toggle(r.path)}><Icon name={collapsed[r.path] ? 'right' : 'down'} size={14} /></button>{/if}
                 {#if issueByFind[r.find] && r.level === 1}<span class="issue-dot {issueByFind[r.find].level}" title={issueByFind[r.find].message}></span>{/if}
                 {r.find}
               </td>

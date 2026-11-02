@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import type { Snippet } from 'svelte';
   let { title, wide = false, onclose, children, footer }: { title: string; wide?: boolean; onclose: () => void; children: Snippet; footer?: Snippet } = $props();
   function key(e: KeyboardEvent) {
@@ -13,7 +14,7 @@
   <div class="modal" class:wide role="dialog" aria-modal="true" aria-label={title}>
     <div class="modal-head">
       <h2>{title}</h2>
-      <button class="ghost icon" aria-label="Close" onclick={onclose}>✕</button>
+      <button class="ghost icon" aria-label="Close" onclick={onclose}><Icon name="close" /></button>
     </div>
     <div class="modal-body">{@render children()}</div>
     {#if footer}<div class="modal-foot">{@render footer()}</div>{/if}

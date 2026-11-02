@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { lists, loadLists, listOf } from '../lib/lists.svelte';
   import { session, userName, spaceName } from '../lib/state.svelte';
   import UserPicker from './UserPicker.svelte';
@@ -96,7 +97,7 @@
         <div class="field"><label for="f-uc">Unit cost</label><input id="f-uc" bind:value={item.unitCost} /></div>
         <div class="field"><label for="f-lt">Lead time (days)</label><input id="f-lt" type="number" min="0" bind:value={item.leadTimeDays} /></div>
         <div class="field"><label for="f-alt">Approved alternates</label>
-          <div>{#each item.alternates || [] as a}<span class="chip">{a}<button aria-label="Remove" onclick={() => (item.alternates = item.alternates.filter((x: string) => x !== a))}>✕</button></span>{/each}</div>
+          <div>{#each item.alternates || [] as a}<span class="chip">{a}<button aria-label="Remove" onclick={() => (item.alternates = item.alternates.filter((x: string) => x !== a))}><Icon name="remove" size={14} /></button></span>{/each}</div>
           <RecordPicker kinds="part" placeholder="Add a COTS part" onpick={(id) => { if (/\./.test(id)) item.alternates = [...(item.alternates || []), id]; }} /></div>
       {/if}
       <label class="checkbox"><input type="checkbox" bind:checked={item.vendorDownload} /> Vendors may download native files</label>
@@ -131,7 +132,7 @@
     {#each item.steps || [] as s, i}
       <div class="card card-body" style="margin-bottom: 0.5rem">
         <div class="row"><strong>Step {i + 1}</strong><span class="spacer"></span>
-          <button class="small" aria-label="Move up" onclick={() => moveStep(i, -1)}>↑</button><button class="small" aria-label="Move down" onclick={() => moveStep(i, 1)}>↓</button>
+          <button class="small" aria-label="Move up" onclick={() => moveStep(i, -1)}><Icon name="up" size={14} /></button><button class="small" aria-label="Move down" onclick={() => moveStep(i, 1)}><Icon name="dn" size={14} /></button>
           <button class="small danger" onclick={() => (item.steps = item.steps.filter((_: any, j: number) => j !== i))}>Remove</button></div>
         <div class="field"><label for="st-{i}">Instruction</label><textarea id="st-{i}" bind:value={s.instruction}></textarea></div>
         <div class="field"><label for="sa-{i}">Acceptance criteria</label><input id="sa-{i}" bind:value={s.acceptance} /></div>

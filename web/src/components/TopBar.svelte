@@ -3,6 +3,7 @@
   import { session, can, setMe, disconnectEvents, refreshUnread } from '../lib/state.svelte';
   import { navigate, recordPath } from '../lib/router.svelte';
   import { kindLabel, ago } from '../lib/format';
+  import Icon from './Icon.svelte';
 
   let q = $state('');
   let results: any[] = $state([]);
@@ -89,7 +90,7 @@
 
 <svelte:window onclick={outside} />
 <header class="topbar">
-  <button class="ghost icon menu-btn" aria-label="Menu" onclick={() => (session.sidebarOpen = !session.sidebarOpen)}>☰</button>
+  <button class="ghost icon menu-btn" aria-label="Menu" onclick={() => (session.sidebarOpen = !session.sidebarOpen)}><Icon name="menu" size={20} /></button>
   <a class="brand" href="/"><img src="/logo.svg" alt="" /><span class="hide-phone">DesignHub</span></a>
   <div class="search" class:mobile-open={mobileSearch} bind:this={searchEl}>
     <input type="search" placeholder="Search or type an ID" aria-label="Search" bind:value={q} oninput={search} onkeydown={key} onfocus={() => (focused = true)} />
@@ -106,12 +107,12 @@
     {/if}
   </div>
   <button class="ghost icon phone-only" aria-label="Search" onclick={() => (mobileSearch = !mobileSearch)}>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <Icon name="search" size={20} />
   </button>
   <span class="spacer"></span>
   <div class="menu-wrap" bind:this={bellEl}>
     <button class="ghost icon bell" aria-label="Notifications" onclick={openBell}>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <Icon name="bell" size={20} />
       {#if session.unread > 0}<span class="dot">{session.unread > 99 ? '99+' : session.unread}</span>{/if}
     </button>
     {#if bellOpen}
@@ -132,14 +133,14 @@
     <button class="ghost avatar" aria-label="Profile menu" onclick={() => (profileOpen = !profileOpen)}>{(session.me?.displayName || '?').slice(0, 1).toUpperCase()}</button>
     {#if profileOpen}
       <div class="menu">
-        <div style="padding: 0.4rem 0.65rem"><strong>{session.me?.displayName}</strong><br /><span class="muted small">{session.me?.libraryRole}</span></div>
+        <div style="padding: 4px 14px 6px"><strong>{session.me?.displayName}</strong><br /><span class="muted small">{session.me?.libraryRole}</span></div>
         <hr />
-        <a href="/settings/profile" onclick={() => (profileOpen = false)}>My profile</a>
-        <a href="/settings/appearance" onclick={() => (profileOpen = false)}>Settings</a>
-        {#if isAdmin}<a href="/admin" onclick={() => (profileOpen = false)}>Admin</a>{/if}
-        <a href="/about" onclick={() => (profileOpen = false)}>About DesignHub</a>
+        <a href="/settings/profile" onclick={() => (profileOpen = false)}><Icon name="user" />My profile</a>
+        <a href="/settings/appearance" onclick={() => (profileOpen = false)}><Icon name="settings" />Settings</a>
+        {#if isAdmin}<a href="/admin" onclick={() => (profileOpen = false)}><Icon name="admin" />Admin</a>{/if}
+        <a href="/about" onclick={() => (profileOpen = false)}><Icon name="about" />About DesignHub</a>
         <hr />
-        <button onclick={signOut}>Sign out</button>
+        <button onclick={signOut}><Icon name="signout" />Sign out</button>
       </div>
     {/if}
   </div>
@@ -148,22 +149,26 @@
 <style>
   .menu-btn { display: none; }
   @media (max-width: 900px) { .menu-btn { display: inline-flex; } }
-  .search { position: relative; flex: 1; max-width: 520px; margin-left: 1rem; }
-  .search input { background: var(--surface-2); border-color: var(--border); }
+  .search { position: relative; flex: 1; max-width: 480px; margin-left: 12px; }
+  .search input { background: var(--panel2); border-color: transparent; }
+  .search input:focus { border-color: var(--accent); }
   @media (max-width: 600px) {
-    .search { display: none; position: fixed; top: var(--topbar); left: 0; right: 0; margin: 0; max-width: none; padding: 0.5rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+    .search { display: none; position: fixed; top: var(--topbar); left: 0; right: 0; margin: 0; max-width: none; padding: 6px 8px; background: var(--menubar); }
     .search.mobile-open { display: block; }
   }
-  .quick { position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 70vh; overflow: auto; z-index: 60; padding: 0.3rem; }
-  .qr { display: flex; gap: 0.6rem; width: 100%; justify-content: flex-start; border: 0; background: none; font-weight: 400; padding: 0.4rem 0.6rem; min-height: 32px; text-align: left; }
-  .qr:hover, .qr.sel { background: var(--surface-2); }
+  .quick { position: absolute; top: calc(100% + 2px); left: 0; right: 0; max-height: 70vh; overflow: auto; z-index: 60; padding: 4px 0; color: var(--text); border-color: var(--pop-line); box-shadow: var(--shadow-pop); border-radius: 0; }
+  .quick .nav-section { margin-top: 2px; }
+  .qr { display: flex; gap: 8px; width: 100%; justify-content: flex-start; border: 0; border-radius: 0; background: none; font-weight: 400; padding: 4px 14px; min-height: 26px; text-align: left; color: var(--text); }
+  .qr:hover, .qr.sel { background: var(--accent); color: #fff; text-decoration: none; }
   .qr .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .qr.all { color: var(--link); font-size: 0.88rem; }
+  .qr.all { color: var(--accent); }
+  .qr.all:hover { color: #fff; }
   .bell { position: relative; }
-  .dot { position: absolute; top: 2px; right: 0; background: var(--danger); color: #fff; font-size: 0.65rem; font-weight: 700; border-radius: 999px; padding: 0 0.3rem; min-width: 1rem; }
+  .dot { position: absolute; top: 0; right: -2px; background: var(--attention); color: var(--attention-text); font-size: 10px; font-weight: 600; border-radius: 8px; padding: 0 4px; min-width: 15px; line-height: 15px; }
   .notes { width: min(360px, 92vw); max-height: 70vh; overflow: auto; }
-  .notes button { text-align: left; white-space: normal; }
+  .notes button { white-space: normal; align-items: flex-start; }
   .notes button.unread { background: var(--accent-soft); }
-  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font-weight: 700; padding: 0; }
+  .notes button.unread:hover { background: var(--accent); }
+  .avatar { width: 28px; height: 28px; min-height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font-weight: 600; padding: 0; border: 0; }
   .avatar:hover { background: var(--accent-hover); }
 </style>
