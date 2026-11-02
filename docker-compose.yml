@@ -44,16 +44,35 @@ services:
       DESIGNHUB_DB_HOST: postgres
       # auto marks the session cookie secure for requests that arrive over HTTPS
       DESIGNHUB_SECURE_COOKIE: auto
+      DESIGNHUB_PDF_URL: http://pdf:3000
       TZ: America/Los_Angeles
     volumes:
       - repo:/data
       - backups:/backups
       - secrets:/secrets:ro
+    networks:
+      - default
+      - pdf
     depends_on:
       init:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
+
+  # Renders PDF exports with headless Chromium. It sits on an internal
+  # network with no internet access, opens only the files DesignHub sends,
+  # and runs no JavaScript.
+  pdf:
+    image: gotenberg/gotenberg:8-chromium
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --chromium-allow-list=^file:///tmp/.*
+      - --chromium-disable-javascript=true
+      - --api-timeout=120s
+      - --log-level=warn
+    networks:
+      - pdf
 
   proxy:
     image: caddy:2-alpine
@@ -96,6 +115,11 @@ configs:
       :80 {
       	redir https://{host}{uri} permanent
       }
+
+networks:
+  default:
+  pdf:
+    internal: true
 
 volumes:
   repo:

@@ -5,12 +5,12 @@
   import WorkFields from '../components/WorkFields.svelte';
   let { params }: { params?: any; pattern?: string } = $props();
   const space = route.query.get('space') || session.space;
-  let w: any = $state({ type: route.query.get('type') || 'task', space, title: '', description: '', priority: 'Normal', assigneeId: '', dueDate: '', epic: '', labels: [], fields: {}, attachments: [] });
+  let w: any = $state({ type: route.query.get('type') || 'task', space, title: '', description: '', priority: 'Normal', assigneeId: '', dueDate: '', epic: '', labels: [], fields: {}, attachments: [], estimate: null, sprint: '', milestone: '' });
   let busy = $state(false);
   async function create() {
     busy = true;
     try {
-      const r = await post('/api/work', { type: w.type, space: w.space, title: w.title, description: w.description, priority: w.priority, assigneeId: w.assigneeId || '', dueDate: w.dueDate || '', epic: w.epic, labels: w.labels, fields: w.fields });
+      const r = await post('/api/work', { type: w.type, space: w.space, title: w.title, description: w.description, priority: w.priority, assigneeId: w.assigneeId || '', dueDate: w.dueDate || '', epic: w.epic, labels: w.labels, fields: w.fields, estimate: w.estimate ?? null, sprint: w.sprint || '', milestone: w.milestone || '' });
       toast(`${r.id} created.`);
       navigate('/work/' + r.id, true);
     } catch (e: any) { toast(e.message, 'error'); }

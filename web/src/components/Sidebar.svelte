@@ -4,6 +4,7 @@
   import { get, post } from '../lib/api';
   import Modal from './Modal.svelte';
   import Icon from './Icon.svelte';
+  import { isVendor, isContractor } from '../lib/state.svelte';
   import { onDestroy } from 'svelte';
 
   let tree: { home: string; pages: any[] } = $state({ home: '', pages: [] });
@@ -56,12 +57,24 @@
   }
   function close() { session.sidebarOpen = false; }
 
+  let newFor: string | null = $state(null);
+  let newTitle = $state('');
+  let newTemplate = $state('');
+  let templates: any[] = $state([]);
   async function newPage(parent: string) {
     menuFor = '';
-    const title = prompt('Page title');
-    if (!title?.trim()) return;
+    newFor = parent;
+    newTitle = '';
+    newTemplate = '';
+    templates = await get(`/api/templates?space=${space}&active=1`).catch(() => []);
+  }
+  async function createPage() {
+    const parent = newFor ?? tree.home;
+    const title = newTitle;
+    if (!title.trim() && !newTemplate) return;
+    newFor = null;
     try {
-      const r = await post('/api/pages', { space, parent: parent === tree.home ? '' : parent, title });
+      const r = await post('/api/pages', { space, parent: parent === tree.home ? '' : parent, title, template: newTemplate });
       open = { ...open, [parent]: true };
       await loadTree();
       navigate('/pages/' + r.id + '?edit=1');
@@ -109,11 +122,18 @@
 
 <svelte:window onclick={outside} />
 <nav class="sidebar" class:open={session.sidebarOpen} aria-label="Main">
+  {#if isVendor()}
+  <a class="nav-item" class:active={active('/', true)} href="/" onclick={close}><Icon name="home" />Home</a>
+  <a class="nav-item" class:active={active('/library') || active('/items')} href="/library" onclick={close}><Icon name="library" />Supplied items</a>
+  <a class="nav-item" class:active={active('/supplier-ncrs') || active('/work')} href="/supplier-ncrs" onclick={close}><Icon name="ncr" />Nonconformances</a>
+  <a class="nav-item" class:active={active('/notifications')} href="/notifications" onclick={close}><Icon name="bell" />Notifications {#if session.unread}<span class="badge-count">{session.unread}</span>{/if}</a>
+  <a class="nav-item" class:active={active('/about')} href="/about" onclick={close}><Icon name="about" />About</a>
+  {:else}
   <a class="nav-item" class:active={active('/', true)} href="/" onclick={close}><Icon name="home" />Home</a>
   <a class="nav-item" class:active={active('/my-work')} href="/my-work" onclick={close}><Icon name="mywork" />My Work</a>
   {#if can('library.view')}
     <a class="nav-item" class:active={active('/library') || active('/items')} href="/library" onclick={close}><Icon name="library" />Library</a>
-    <a class="nav-item" class:active={active('/change-orders') || active('/baselines')} href="/change-orders" onclick={close}><Icon name="co" />Change orders</a>
+    {#if !isContractor()}<a class="nav-item" class:active={active('/change-orders') || active('/baselines')} href="/change-orders" onclick={close}><Icon name="co" />Change orders</a>{/if}
   {/if}
   <a class="nav-item" class:active={active('/search')} href="/search" onclick={close}><Icon name="search" />Search</a>
   <a class="nav-item" class:active={active('/notifications')} href="/notifications" onclick={close}><Icon name="bell" />Notifications {#if session.unread}<span class="badge-count">{session.unread}</span>{/if}</a>
@@ -131,6 +151,10 @@
     <a class="nav-item" class:active={active(`/spaces/${space}/list`)} href="/spaces/{space}/list" onclick={close}><Icon name="list" />List</a>
     <a class="nav-item" class:active={active(`/spaces/${space}/ncr-board`)} href="/spaces/{space}/ncr-board" onclick={close}><Icon name="ncr" />NCR Board</a>
     <a class="nav-item" class:active={active(`/spaces/${space}/ncr-list`)} href="/spaces/{space}/ncr-list" onclick={close}><Icon name="list" />NCR List</a>
+    <a class="nav-item" class:active={active(`/spaces/${space}/sprints`) || active('/sprints/')} href="/spaces/{space}/sprints" onclick={close}><Icon name="board" />Sprints</a>
+    <a class="nav-item" class:active={active(`/spaces/${space}/milestones`) || active('/milestones/')} href="/spaces/{space}/milestones" onclick={close}><Icon name="baseline" />Milestones</a>
+    <a class="nav-item" class:active={active(`/spaces/${space}/timeline`)} href="/spaces/{space}/timeline" onclick={close}><Icon name="trace" />Timeline</a>
+    {#if canIn(space, 'time.report')}<a class="nav-item" class:active={active(`/spaces/${space}/time-report`)} href="/spaces/{space}/time-report" onclick={close}><Icon name="mywork" />Time report</a>{/if}
 
     <div class="nav-section row" style="padding-right: 6px">Pages <span class="spacer"></span>{#if editable}<button class="twisty" title="New page" aria-label="New page" onclick={() => newPage(tree.home)}><Icon name="plus" size={14} /></button>{/if}</div>
     {#snippet node(p: any, depth: number)}
@@ -167,13 +191,27 @@
   {:else}
     <div class="muted small" style="padding: 0 10px">You are not a member of any space.</div>
   {/if}
-  {#if can('library.view')}
+  {#if can('library.view') && !isContractor()}
     <div class="nav-section">Engineering</div>
     <a class="nav-item" class:active={active('/traceability')} href="/traceability" onclick={close}><Icon name="trace" />Traceability</a>
     <a class="nav-item" class:active={active('/baselines')} href="/baselines" onclick={close}><Icon name="baseline" />Baselines</a>
   {/if}
+  {/if}
 </nav>
 
+{#if newFor !== null}
+  <Modal title="New page" onclose={() => (newFor = null)}>
+    <div class="field"><label for="np-t">Title</label><input id="np-t" maxlength="150" bind:value={newTitle} placeholder={newTemplate ? 'Leave empty to use the template title' : ''} /></div>
+    <div class="field"><label for="np-p">Parent page</label>
+      <select id="np-p" bind:value={newFor}>{#each allPages as x}<option value={x.id}>{x.id === tree.home ? x.title + ' (top level)' : x.title}</option>{/each}</select></div>
+    <span class="lbl">Template</span>
+    <div class="tpls">
+      <label class="tpl" class:on={newTemplate === ''}><input type="radio" name="tpl" value="" bind:group={newTemplate} /><span><strong>Blank page</strong><br /><span class="muted small">Start with an empty page.</span></span></label>
+      {#each templates as t}<label class="tpl" class:on={newTemplate === t.id}><input type="radio" name="tpl" value={t.id} bind:group={newTemplate} /><span><strong>{t.name}</strong>{#if t.space} <span class="pill">This space</span>{/if}<br /><span class="muted small">{t.description}</span></span></label>{/each}
+    </div>
+    {#snippet footer()}<button onclick={() => (newFor = null)}>Cancel</button><button class="primary" disabled={!newTitle.trim() && !newTemplate} onclick={createPage}>Create</button>{/snippet}
+  </Modal>
+{/if}
 {#if moveFor}
   <Modal title="Move {moveFor.title}" onclose={() => (moveFor = null)}>
     <div class="field">
@@ -188,3 +226,11 @@
     {/snippet}
   </Modal>
 {/if}
+
+<style>
+  .lbl { font-size: 11.5px; font-weight: 600; color: var(--text-2); display: block; margin-bottom: 3px; }
+  .tpls { display: grid; gap: 4px; max-height: 40vh; overflow: auto; }
+  .tpl { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 1px solid var(--line2); border-radius: 4px; font-weight: 400; color: var(--text); font-size: 12.5px; cursor: pointer; margin: 0; }
+  .tpl.on { border-color: var(--on-line); background: var(--accent-soft); }
+  .tpl input { margin-top: 3px; }
+</style>

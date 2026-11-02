@@ -2,6 +2,22 @@
 
 The installed version is shown at the top of this guide.
 
+## 2.0.0 (2026-11-02): Version 2
+
+- Companies: vendors, contractors and customers with supplier status, contacts, supplied items and NCRs. Suppliers can be set on released items without a change order.
+- Vendor accounts see only released revisions of items their company supplies, the NCRs naming their company and the actions assigned to them. They respond to supplier requests and add supplier documents.
+- Contractor accounts work only in the spaces they belong to.
+- Account expiry, with notices to Admins 14 days and 1 day before.
+- Internal comments, hidden from Vendors.
+- Custom roles copied from existing roles.
+- Editable workflows for tasks, issues, actions, epics and NCRs, with categories, transitions by role and required fields. The NCR disposition and change order rules stay in force.
+- Sprints with a backlog, milestones with health, a timeline, estimates, time logging, My time and time reports.
+- Page templates, with six that come with DesignHub.
+- Inline comments on selected page text.
+- PDF export of pages and page trees, engineering items, change orders, work items and NCRs.
+- CSV export from every table and full exports of every record type; CSV import with a preview for parts, BOM lines, requirements, work items, manufacturers and companies.
+- New PDF service container in the Docker Compose file. Pull the new compose file before updating.
+
 ## 1.2.1 (2026-11-01): New look
 
 - DesignHub now shares OpenSchem's look: the same colors, light and dark themes, type sizes, spacing, buttons, menus, dialogs and lists.

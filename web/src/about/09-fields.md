@@ -103,6 +103,7 @@ Purchased parts add:
 | Show released only | Yes/No | No | Controlled pages only |
 | Body | Long text | No | May contain live blocks |
 | Owner | User | Yes | |
+| Template | Template | No | Set when the page is created from a template |
 
 ## Change order
 
@@ -131,7 +132,11 @@ Purchased parts add:
 | Due date | Date | No | |
 | Epic | Link to epic | No | |
 | Issue area and severity | Choice | Issues | Severity: Minor, Major, Critical |
-| Epic start, target and progress | | Epics | Progress is the share of child items Done |
+| Epic start, target and progress | | Epics | Progress is the share of child items in a Done state |
+| Estimate | Hours, in quarter-hour steps | No | |
+| Time logged, Remaining | Hours | Computed | Remaining is estimate minus time logged, not below zero |
+| Sprint | Sprint in the same space | No | Not on epics |
+| Milestone | Milestone in the same space | No | |
 
 ## Nonconformance (NCR)
 
@@ -151,6 +156,47 @@ Purchased parts add:
 | Root cause, corrective action | Long text | To reach Verified | |
 | Verification of effectiveness | Long text | To reach Closed | |
 | Requires design change | Yes/No | Yes | If Yes, a linked change order is required to close |
+| Supplier | Company | No | Gives that company's Vendors access to the NCR |
+| Supplier response requested, due | Date | No | |
+| Supplier root cause, corrective action | Long text | No | Entered by the supplier's Vendors |
+| Supplier responded on | Date and time | Auto | |
+
+With an edited NCR workflow, the state requirements above follow the workflow; the fixed rules on the [Work and NCRs](/about/work) page always apply.
+
+## Company
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| ID | COMP-NNNN | Auto | |
+| Name | Text, max 100 | Yes | Unique |
+| Kind | Choice list | Yes | Vendor, Contractor, Customer, Other |
+| Supplier status | Choice | No | Approved, Conditional, Not approved. A warning shows on parts and NCRs when not Approved. |
+| Manufacturer codes | Manufacturer list | No | |
+| Address, phone, website | Text | No | |
+| Contacts | Name, role, email, phone | No | Contacts are not users |
+| Notes | Long text | No | |
+| Active | Yes/No | Yes | Inactive companies cannot be linked, and their Vendor and Contractor accounts cannot sign in |
+
+## Sprint, milestone and time entry
+
+| Record | Fields |
+|---|---|
+| Sprint (SPR) | Name, space, goal, start and end date, state (Planned, Active, Closed), committed and completed items |
+| Milestone (MS) | Name, space, target date, description, owner, progress, health, completed on |
+| Time entry | Work item, person, date, hours (0.25 to 24), note |
+
+## Template
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| ID | TPL-NNNN | Auto | |
+| Name | Text, max 60 | Yes | |
+| Scope | All spaces or one space | Yes | |
+| Description | Text | No | Shown in the New page dialog |
+| Page type | Choice | Yes | |
+| Title pattern | Text | No | For example "Design review {date}" |
+| Body | Long text | Yes | Placeholders {date}, {user}, {space} and {title} are filled when the page is created |
+| Active | Yes/No | Yes | |
 
 ## Link types
 
@@ -165,5 +211,7 @@ Purchased parts add:
 | fixed by | Issue, NCR | Change order | fixes |
 | blocks | Work item | Work item | blocked by |
 | duplicates | Work item | Work item | duplicated by |
+| supplied by | Part, assembly | Company | supplies |
+| supplier | NCR | Company | has nonconformance |
 | replaced by | Any record | Record of the same type | replaces |
 | relates to | Any record | Any record | relates to |

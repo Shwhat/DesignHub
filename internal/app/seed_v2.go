@@ -78,8 +78,11 @@ func (s *seeder) seedV2(pw string) error {
 			if id, err = a.nextPrefixed(ctx, tx, "SPR", "sprint", ed1.ID); err != nil {
 				return err
 			}
-			_, err = tx.Exec(ctx, `INSERT INTO sprints (id, space_id, name, goal, start_date, end_date, created_by) VALUES ($1, 'SP-0001', $2, $3, $4, $5, $6)`,
-				id, name, "Seed sprint", start, end, ed1.ID)
+			if _, err = tx.Exec(ctx, `INSERT INTO sprints (id, space_id, name, goal, start_date, end_date, created_by) VALUES ($1, 'SP-0001', $2, $3, $4, $5, $6)`,
+				id, name, "Seed sprint", start, end, ed1.ID); err != nil {
+				return err
+			}
+			_, err = tx.Exec(ctx, `INSERT INTO records (id, kind, title, status, space_id, origin) VALUES ($1, 'sprint', $2, 'Planned', 'SP-0001', 'db')`, id, name)
 			return err
 		}))
 		return id
@@ -124,6 +127,7 @@ func (s *seeder) seedV2(pw string) error {
 	if _, err := a.DB.Exec(ctx, `UPDATE sprints SET state = 'Active', committed = $2 WHERE id = $1`, spr1, committed); err != nil {
 		return err
 	}
+	a.DB.Exec(ctx, `UPDATE records SET status = 'Active' WHERE id = $1`, spr1)
 	_ = spr2
 	for _, x := range []struct {
 		user *User

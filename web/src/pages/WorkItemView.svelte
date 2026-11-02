@@ -12,6 +12,11 @@
   import LockDialog from '../components/LockDialog.svelte';
   import RecordPicker from '../components/RecordPicker.svelte';
   import Files from '../components/Files.svelte';
+  import TimeEntries from '../components/TimeEntries.svelte';
+  import SupplierResponse from '../components/SupplierResponse.svelte';
+  import PdfDialog from '../components/PdfDialog.svelte';
+  import { isVendor, canIn } from '../lib/state.svelte';
+  import { pdfHTML } from '../lib/exporting';
   import { onDestroy, untrack } from 'svelte';
 
   let { params }: { params: any; pattern?: string } = $props();
@@ -24,6 +29,10 @@
   let sign = $state('');
   let lockOpen = $state(false);
   let linkType = $state('relates to');
+  let pendingStatus = $state('');
+  let pendingMsg = $state('');
+  let pdfOpen = $state(false);
+  let printEl: HTMLElement | undefined = $state();
 
   async function load() {
     try {
@@ -37,9 +46,11 @@
   const off = onEvent((e) => { if ((e.type === 'record' || e.type === 'board') && e.id === id && !editing) load(); });
   onDestroy(() => { off(); setLeaveGuard(null); });
   const isNCR = $derived(d?.item.type === 'ncr');
-  const tabs = $derived(isNCR
-    ? [['report', 'Report'], ['disposition', 'Disposition'], ['corrective', 'Corrective action'], ['verification', 'Verification'], ['links', 'Links'], ['attachments', 'Attachments'], ['history', 'History']]
-    : [['details', 'Details'], ['links', 'Links'], ['attachments', 'Attachments'], ['history', 'History']]);
+  const tabs = $derived(isVendor()
+    ? [['report', 'Report'], ...(isNCR && d?.item.fields?.supplier ? [['supplier', 'Supplier response']] : []), ['attachments', 'Attachments']]
+    : isNCR
+    ? [['report', 'Report'], ['disposition', 'Disposition'], ['corrective', 'Corrective action'], ['verification', 'Verification'], ...(d?.item.fields?.supplier ? [['supplier', 'Supplier response']] : []), ['time', 'Time'], ['links', 'Links'], ['attachments', 'Attachments'], ['history', 'History']]
+    : [['details', 'Details'], ...(d?.item.type !== 'epic' ? [['time', 'Time']] : []), ['links', 'Links'], ['attachments', 'Attachments'], ['history', 'History']]);
   function setTab(t: string) { tab = t; setQuery({ tab: t }); }
   function startEdit() {
     w = JSON.parse(JSON.stringify(d.item));
@@ -49,13 +60,30 @@
   async function save() {
     try {
       await patch('/api/work/' + id, { version: d.item.version, title: w.title, description: w.description, priority: w.priority, assigneeId: w.assigneeId || '',
-        dueDate: w.dueDate || '', epic: w.epic, labels: w.labels, fields: w.fields, attachments: w.attachments });
-      editing = false; setLeaveGuard(null); toast('Saved.'); load();
+        dueDate: w.dueDate || '', epic: w.epic, labels: w.labels, fields: w.fields, attachments: w.attachments,
+        estimate: w.estimate ?? null, sprint: w.sprint || '', milestone: w.milestone || '' });
+      editing = false; setLeaveGuard(null); toast('Saved.');
+      const next = pendingStatus;
+      pendingStatus = ''; pendingMsg = '';
+      if (next) await setStatus(next); else load();
     } catch (e: any) { toast(e.message, 'error'); }
   }
   async function setStatus(s: string) {
     try { await post(`/api/work/${id}/status`, { status: s }); toast(`${id} is now ${s}.`); load(); }
-    catch (e: any) { toast(e.message, 'error'); load(); }
+    catch (e: any) {
+      if (e.code === 'required' && d.canEdit) {
+        // Ask for the fields the target state needs, then move it.
+        pendingStatus = s; pendingMsg = e.message;
+        await load();
+        setTab(isNCR ? (/(root cause|corrective)/i.test(e.message) ? 'corrective' : /verification/i.test(e.message) ? 'verification' : 'report') : 'details');
+        startEdit();
+      } else { toast(e.message, 'error'); load(); }
+    }
+  }
+  async function buildPdf() {
+    const parts: (HTMLElement | string)[] = [];
+    if (printEl) parts.push(printEl);
+    return { html: await pdfHTML(parts), scope: d.item.type };
   }
   async function signNCR(password: string, comment: string) {
     await post(`/api/work/${id}/sign`, { decision: sign, password, comment });
@@ -104,18 +132,27 @@
       {#if d.canEdit && !editing && sectionEditable(tab)}<button class="primary" onclick={startEdit}>Edit</button>{/if}
       <Menu>
         {#if d.canEdit}<button onclick={startEdit}>Edit</button>{/if}
-        {#if isNCR}<button onclick={createCO}>Create change order</button>{/if}
+        {#if isNCR && !isVendor()}<button onclick={createCO}>Create change order</button>{/if}
+        {#if isNCR && !isVendor() && d.item.fields?.supplier}<button onclick={() => setTab('supplier')}>Request supplier response...</button>{/if}
+        {#if d.item.type !== 'epic' && !isVendor() && canIn(d.item.space, 'time.log')}<button onclick={() => setTab('time')}>Log time...</button>{/if}
+        <button onclick={() => (pdfOpen = true)}>Export PDF...</button>
+        <hr />
         <button onclick={watch}>{d.watching ? 'Stop watching' : 'Watch'}</button>
-        <button onclick={() => (lockOpen = true)}>Lock</button>
+        {#if !isVendor()}<button onclick={() => (lockOpen = true)}>Lock...</button>{/if}
       </Menu>
     </div>
   </div>
+  {#if pendingMsg && editing}<div class="banner warn">{pendingMsg} Fill them in and save to move {id} to {pendingStatus}.</div>{/if}
   {#if editing}
-    <div class="save-bar"><strong>Editing</strong><span class="spacer"></span><button onclick={() => { editing = false; setLeaveGuard(null); }}>Cancel</button><button class="primary" onclick={save}>Save</button></div>
+    <div class="save-bar"><strong>Editing</strong><span class="spacer"></span><button onclick={() => { editing = false; pendingStatus = ''; pendingMsg = ''; setLeaveGuard(null); }}>Cancel</button><button class="primary" onclick={save}>{pendingStatus ? 'Save and move to ' + pendingStatus : 'Save'}</button></div>
   {/if}
   <div class="tabs">{#each tabs as [k, l]}<button class:active={tab === k} onclick={() => setTab(k)}>{l}</button>{/each}</div>
 
-  {#if tab === 'links'}
+  {#if tab === 'time'}
+    <TimeEntries itemId={id} onchange={load} />
+  {:else if tab === 'supplier'}
+    <SupplierResponse item={d.item} canRequest={d.canEdit} onchange={load} />
+  {:else if tab === 'links'}
     <div class="card">
       {#each d.links as l}<div class="comment row"><span class="muted">{l.type}</span><a class="id" href={recordPath(l.id, l.kind)}>{l.id}</a>{#if l.rev}<span>rev {l.rev}</span>{/if}<span>{l.title}</span><Status value={l.status} /><span class="spacer"></span>{#if l.out && d.canEdit && ['blocks', 'duplicates', 'relates to', 'affects', 'fixed by'].includes(l.type)}<button class="small danger" onclick={() => removeLink(l)}>Remove</button>{/if}</div>
       {:else}<div class="empty">No links.</div>{/each}
@@ -149,5 +186,22 @@
 {/if}
 {#if sign}<SignatureDialog title="{sign === 'Approved' ? 'Approve' : 'Reject'} disposition of {id}" decision={sign} requireComment={sign === 'Rejected'} onsign={signNCR} onclose={() => (sign = '')} />{/if}
 {#if session.commentsOpen}<Comments recordId={id} />{/if}
+{#if pdfOpen}<PdfDialog id={id} build={buildPdf} onclose={() => (pdfOpen = false)} />{/if}
+<div style="display: none"><div bind:this={printEl}>
+  <h1>{d.item.title}</h1>
+  <p class="muted">{id} &middot; {kindLabel(d.item.type)} &middot; {d.item.status} &middot; {spaceName(d.item.space)}</p>
+  {#each (isNCR ? ['report', 'disposition', 'corrective', 'verification'] : ['details']) as sec}
+    <div class="card card-body" style="margin-bottom: 12px"><WorkFields w={d.item} section={sec} /></div>
+  {/each}
+  {#if isNCR && d.approvals?.length}
+    <h3>Disposition approvals</h3>
+    <table class="data"><tbody>{#each d.approvals as a}<tr><td>{a.name}</td><td>{a.decision || 'Pending'}</td><td>{dateTime(a.decidedAt)}</td><td>{a.comment}</td></tr>{/each}</tbody></table>
+  {/if}
+  {#if isNCR && d.item.fields?.supplier}
+    <h3>Supplier response</h3>
+    <p style="white-space: pre-wrap"><strong>Root cause:</strong> {d.item.fields.supplier_root_cause || '-'}</p>
+    <p style="white-space: pre-wrap"><strong>Corrective action:</strong> {d.item.fields.supplier_corrective_action || '-'}</p>
+  {/if}
+</div></div>
 {#if lockOpen}<LockDialog recordId={id} current={d.lock} onclose={() => (lockOpen = false)} ondone={() => { lockOpen = false; load(); }} />{/if}
 {/if}

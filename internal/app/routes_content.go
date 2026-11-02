@@ -208,6 +208,7 @@ func (a *App) routesV2(api func(string, handlerFunc)) {
 	api("GET /api/imports", a.apiImports)
 	api("GET /api/imports/{id}/file", a.apiImportFile)
 	api("GET /api/import-templates/{type}", a.apiImportTemplate)
+	api("GET /api/import-samples/{sha}", a.apiImportSample)
 	api("POST /api/imports/preview", a.apiImportPreview)
 	api("POST /api/imports/commit", a.apiImportCommit)
 	api("POST /api/pdf", a.apiPDF)

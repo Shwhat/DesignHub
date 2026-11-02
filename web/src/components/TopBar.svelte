@@ -129,6 +129,7 @@
       </div>
     {/if}
   </div>
+  {#if session.me?.companyName && session.me?.scope}<span class="company hide-phone">{session.me.companyName}</span>{/if}
   <div class="menu-wrap" bind:this={profEl}>
     <button class="ghost avatar" aria-label="Profile menu" onclick={() => (profileOpen = !profileOpen)}>{(session.me?.displayName || '?').slice(0, 1).toUpperCase()}</button>
     {#if profileOpen}
@@ -137,6 +138,7 @@
         <hr />
         <a href="/settings/profile" onclick={() => (profileOpen = false)}><Icon name="user" />My profile</a>
         <a href="/settings/appearance" onclick={() => (profileOpen = false)}><Icon name="settings" />Settings</a>
+        {#if session.me?.scope !== 'vendor'}<a href="/my-time" onclick={() => (profileOpen = false)}><Icon name="mywork" />My time</a>{/if}
         {#if isAdmin}<a href="/admin" onclick={() => (profileOpen = false)}><Icon name="admin" />Admin</a>{/if}
         <a href="/about" onclick={() => (profileOpen = false)}><Icon name="about" />About DesignHub</a>
         <hr />
@@ -169,6 +171,7 @@
   .notes button { white-space: normal; align-items: flex-start; }
   .notes button.unread { background: var(--accent-soft); }
   .notes button.unread:hover { background: var(--accent); }
+  .company { color: var(--menubar-muted); font-size: 12px; padding: 0 6px; }
   .avatar { width: 28px; height: 28px; min-height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-text); font-weight: 600; padding: 0; border: 0; }
   .avatar:hover { background: var(--accent-hover); }
 </style>

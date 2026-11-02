@@ -10,6 +10,7 @@
 | Engineering repository | Git, through the go-git library. Markdown files with YAML front matter. |
 | Database | PostgreSQL 17 |
 | HTTPS | Caddy in front of the application, with a self-signed certificate until a domain is configured |
+| PDF export | Gotenberg (headless Chromium) in its own container, on an internal network with no internet access and JavaScript turned off |
 | Live updates | Server-Sent Events |
 | Packaging | Docker Compose. Images for amd64 and arm64. |
 
@@ -35,4 +36,6 @@
 | SortableJS | Drag and drop | MIT |
 | PostgreSQL | Database | PostgreSQL License |
 | Caddy | HTTPS proxy | Apache 2.0 |
+| Gotenberg | PDF export service | MIT |
+| Chromium | PDF rendering, inside Gotenberg | BSD 3-Clause and others |
 | Alpine Linux | Container base | Various open source licenses |

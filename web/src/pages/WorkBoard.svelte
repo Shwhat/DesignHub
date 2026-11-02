@@ -3,7 +3,7 @@
   import Sortable from 'sortablejs';
   import { get, post, put } from '../lib/api';
   import { canIn, toast, onEvent, session, setSpace, spaceName } from '../lib/state.svelte';
-  import { navigate } from '../lib/router.svelte';
+  import { navigate, route, setQuery } from '../lib/router.svelte';
   import { date, kindLabel } from '../lib/format';
   import { onDestroy, tick, untrack } from 'svelte';
   let { params, pattern }: { params: any; pattern?: string } = $props();
@@ -12,7 +12,21 @@
   setSpace(space);
   if (window.innerWidth <= 600) navigate(`/spaces/${space}/${ncr ? 'ncr-list' : 'list'}`, true);
 
-  const states = ncr ? ['Reported', 'Dispositioned', 'Corrective Action', 'Verified', 'Closed'] : ['Open', 'In Progress', 'In Review', 'Blocked', 'Done', 'Cancelled'];
+  // Columns follow the workflows of the types on this board, in order.
+  let states: string[] = $state(ncr ? ['Reported', 'Dispositioned', 'Corrective Action', 'Verified', 'Closed'] : ['Open', 'In Progress', 'In Review', 'Blocked', 'Done', 'Cancelled']);
+  get('/api/workflows', { background: true }).then((r) => {
+    const out: string[] = [];
+    for (const t of ncr ? ['ncr'] : ['task', 'issue', 'action', 'epic']) for (const s of r.workflows[t].states) if (!out.includes(s.name)) out.push(s.name);
+    states = out;
+    tick().then(bind);
+  }).catch(() => {});
+  let sprints: any[] = $state([]);
+  let sprint = $state(route.query.get('sprint') || '');
+  get(`/api/spaces/${space}/sprints`, { background: true }).then((r) => {
+    sprints = r.filter((s: any) => s.state !== 'Closed' || s.id === sprint);
+    if (!sprint && !ncr) sprint = sprints.find((s) => s.state === 'Active')?.id || 'all';
+  }).catch(() => {});
+  $effect(() => { if (sprint) setQuery({ sprint: sprint === 'all' ? null : sprint }); tick().then(bind); });
   let rows: any[] = $state([]);
   let lanes = $state('');
   let typeFilter = $state('');
@@ -47,7 +61,7 @@
       }));
     });
   }
-  const filtered = $derived(rows.filter((r) => !typeFilter || r.type === typeFilter));
+  const filtered = $derived(rows.filter((r) => (!typeFilter || r.type === typeFilter) && (ncr || !sprint || sprint === 'all' || (sprint === 'none' ? !r.sprint : r.sprint === sprint))));
   const laneKeys = $derived.by(() => {
     if (!lanes) return [''];
     const keys = new Set<string>();
@@ -62,6 +76,7 @@
   <div class="row" style="margin-bottom: 1rem">
     <h1 style="margin: 0">{ncr ? 'NCR Board' : 'Board'}</h1><span class="muted">{spaceName(space)}</span>
     <span class="spacer"></span>
+    {#if !ncr}<select style="width: auto" bind:value={sprint} aria-label="Sprint"><option value="all">All items</option>{#each sprints as s}<option value={s.id}>{s.state === 'Active' ? 'Active sprint: ' : ''}{s.name}</option>{/each}<option value="none">No sprint</option></select>{/if}
     {#if !ncr}<select style="width: auto" bind:value={typeFilter} aria-label="Type"><option value="">All types</option><option value="task">Tasks</option><option value="issue">Issues</option><option value="action">Actions</option><option value="epic">Epics</option></select>{/if}
     <select style="width: auto" bind:value={lanes} onchange={savePrefs} aria-label="Swimlanes"><option value="">No swimlanes</option><option value="assignee">Swimlanes by assignee</option><option value="epic">Swimlanes by epic</option><option value="priority">Swimlanes by priority</option></select>
     {#if canEdit}<a class="btn primary" href="/work/new?space={space}&type={ncr ? 'ncr' : 'task'}">New {ncr ? 'NCR' : 'item'}</a>{/if}

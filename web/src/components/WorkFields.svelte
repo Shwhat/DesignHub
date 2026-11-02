@@ -9,7 +9,25 @@
 
   let { w = $bindable(), section, editing = false }: { w: any; section: string; editing?: boolean } = $props();
   loadLists();
+  import { hours } from '../lib/format';
   let epics: any[] = $state([]);
+  let sprints: any[] = $state([]);
+  let milestones: any[] = $state([]);
+  let companies: any[] = $state([]);
+  $effect(() => {
+    if (!editing || !w.space) return;
+    get(`/api/spaces/${w.space}/sprints`).then((r) => (sprints = r.filter((s: any) => s.state !== 'Closed' || s.id === w.sprint))).catch(() => {});
+    get(`/api/spaces/${w.space}/milestones`).then((r) => (milestones = r)).catch(() => {});
+    if (w.type === 'ncr') get('/api/companies?active=1').then((r) => (companies = r)).catch(() => {});
+  });
+  let names: Record<string, string> = $state({});
+  $effect(() => {
+    if (editing || !w.space || (!w.sprint && !w.milestone && !w.fields?.supplier)) return;
+    const ids = [w.sprint, w.milestone, w.fields?.supplier].filter(Boolean).join(',');
+    get('/api/resolve?ids=' + ids).then((r) => { const n: Record<string, string> = {}; for (const k in r) n[k] = r[k].title; names = n; }).catch(() => {});
+  });
+  let estText = $state(w.estimate === null || w.estimate === undefined ? '' : String(w.estimate));
+  $effect(() => { if (editing) w.estimate = estText.trim() === '' ? null : Number(estText); });
   $effect(() => { if (editing && w.type !== 'epic' && w.space) get(`/api/spaces/${w.space}/work?type=epic`).then((r) => (epics = r)).catch(() => {}); });
   let labelsText = $state((w.labels || []).join(', '));
   $effect(() => { if (editing) w.labels = labelsText.split(',').map((s: string) => s.trim()).filter(Boolean); });
@@ -54,6 +72,12 @@
         <div class="field"><label for="w-rq">Requirement not met</label><input id="w-rq" value={F.requirement_not_met || ''} oninput={(e) => setF('requirement_not_met', (e.target as HTMLInputElement).value)} /></div>
         <label class="checkbox"><input type="checkbox" checked={!!F.requires_design_change} onchange={(e) => setF('requires_design_change', (e.target as HTMLInputElement).checked)} /> Requires design change</label>
       {/if}
+      {#if w.type === 'ncr'}
+        <div class="field"><label for="w-sup">Supplier</label><select id="w-sup" value={F.supplier || ''} onchange={(e) => setF('supplier', (e.target as HTMLSelectElement).value)}><option value="">None</option>{#each companies as c}<option value={c.id}>{c.name}</option>{/each}</select></div>
+      {/if}
+      <div class="field"><label for="w-est">Estimate (hours)</label><input id="w-est" type="number" min="0" step="0.25" bind:value={estText} /></div>
+      {#if w.type !== 'epic'}<div class="field"><label for="w-spr">Sprint</label><select id="w-spr" bind:value={w.sprint}><option value="">No sprint</option>{#each sprints as sp}<option value={sp.id}>{sp.name} ({sp.state})</option>{/each}</select></div>{/if}
+      <div class="field"><label for="w-ms">Milestone</label><select id="w-ms" bind:value={w.milestone}><option value="">None</option>{#each milestones as m}<option value={m.id}>{m.name}</option>{/each}</select></div>
       <div class="field"><label for="w-lab">Labels (comma separated)</label><input id="w-lab" bind:value={labelsText} /></div>
     </div>
     <div class="field"><label for="w-desc">{w.type === 'ncr' ? 'Nonconformance description' : 'Description'}</label><textarea id="w-desc" rows="6" bind:value={w.description}></textarea></div>
@@ -78,8 +102,12 @@
         {@render text('PO or work order', F.po)}
         {@render text('Requirement not met', F.requirement_not_met)}
         {@render text('Requires design change', F.requires_design_change ? 'Yes' : 'No')}
+        {#if F.supplier}<dt>Supplier</dt><dd><a href="/companies/{F.supplier}">{names[F.supplier] || F.supplier}</a></dd>{/if}
         {@render text('Containment', F.containment)}
       {/if}
+      {#if w.estimate !== null && w.estimate !== undefined || w.logged}<dt>Time</dt><dd>{w.estimate !== null && w.estimate !== undefined ? hours(w.estimate) + ' estimated, ' : ''}{hours(w.logged || 0)} logged{w.estimate !== null && w.estimate !== undefined ? ', ' + hours(Math.max(0, w.estimate - (w.logged || 0))) + ' remaining' : ''}</dd>{/if}
+      {#if w.sprint}<dt>Sprint</dt><dd><a href="/sprints/{w.sprint}">{names[w.sprint] || w.sprint}</a></dd>{/if}
+      {#if w.milestone}<dt>Milestone</dt><dd><a href="/milestones/{w.milestone}">{names[w.milestone] || w.milestone}</a></dd>{/if}
       {@render text('Labels', (w.labels || []).join(', '))}
       {@render text('Created by', w.createdBy)}
     </dl>

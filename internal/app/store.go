@@ -286,7 +286,7 @@ func visible(u *User, id, kind, space string, lock []string) bool {
 		return u.VendorSees[id]
 	}
 	switch kind {
-	case "page", "task", "issue", "action", "epic", "ncr":
+	case "page", "task", "issue", "action", "epic", "ncr", "sprint", "milestone":
 		return u.InSpace(space)
 	case "company":
 		return u.Can(PermLibView) && !u.IsContractor()

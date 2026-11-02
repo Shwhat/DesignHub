@@ -392,3 +392,36 @@ func TestCSVImportExport(t *testing.T) {
 		t.Errorf("vendor export: %d", st)
 	}
 }
+
+func TestBOMImport(t *testing.T) {
+	var samples []map[string]string
+	testApp.Setting("import_samples", &samples)
+	sha := ""
+	for _, s := range samples {
+		if s["name"] == "bom-lines.csv" {
+			sha = s["sha256"]
+		}
+	}
+	e := signIn(t, "editor1")
+	var offer map[string]string
+	e.must("GET", "/api/items/new", nil, &offer)
+	var made map[string]string
+	e.must("POST", "/api/items", map[string]any{"item": map[string]any{"type": "part", "kind": "production", "title": "Import test assembly", "space": "SP-0001"}, "number": strings.TrimSuffix(offer["production"], "-001") + "-201"}, &made)
+	target := made["id"]
+	var prev struct {
+		Rows   []importRow `json:"rows"`
+		Errors int         `json:"errors"`
+	}
+	e.must("POST", "/api/imports/preview", map[string]any{"type": "bom", "mode": "add", "target": target, "sha256": sha, "name": "bom-lines.csv"}, &prev)
+	if prev.Errors != 0 {
+		t.Fatalf("bom preview errors: %+v", prev.Rows)
+	}
+	before := len(cache.get(target).Item.BOM)
+	e.must("POST", "/api/imports/commit", map[string]any{"type": "bom", "mode": "add", "target": target, "sha256": sha, "name": "bom-lines.csv"}, nil)
+	if got := len(cache.get(target).Item.BOM); got != before+4 {
+		t.Errorf("BOM lines: %d, want %d", got, before+4)
+	}
+	if st := e.do("POST", "/api/imports/preview", map[string]any{"type": "bom", "mode": "add", "target": "100003-201", "sha256": sha}, nil); st != 400 {
+		t.Errorf("import into released assembly: %d", st)
+	}
+}

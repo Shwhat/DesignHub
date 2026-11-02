@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from '../../components/Icon.svelte';
-  import { get, post, patch, put } from '../../lib/api';
+  import { get, post, patch, put, del } from '../../lib/api';
   import { session, can, toast, loadUsers, refreshMe } from '../../lib/state.svelte';
   import { navigate } from '../../lib/router.svelte';
   import { dateTime, bytes } from '../../lib/format';
@@ -8,13 +8,23 @@
   import Modal from '../../components/Modal.svelte';
   import Sortable from 'sortablejs';
   import { tick, onDestroy, untrack } from 'svelte';
+  import WorkflowEditor from '../../components/WorkflowEditor.svelte';
+  import TemplatesAdmin from '../../components/TemplatesAdmin.svelte';
+  import ImportsAdmin from '../../components/ImportsAdmin.svelte';
+  import { exportCSV, fullExport } from '../../lib/exporting';
+  import { route } from '../../lib/router.svelte';
+  import { date, today, addDays } from '../../lib/format';
   let { params }: { params: any; pattern?: string } = $props();
   const userId = untrack(() => params.id);
   const section = untrack(() => params.section) || (can('users.manage') ? 'users' : can('system.manage') ? 'system' : 'lists');
   const menu = [
-    ['users', 'Users', 'users.manage'], ['roles', 'Roles', 'users.manage'], ['spaces', 'Spaces', 'spaces.manage'], ['manufacturers', 'Manufacturers', 'lists.manage'],
-    ['lists', 'Lists', 'lists.manage'], ['signin', 'Sign-in message', 'users.manage'], ['audit', 'Audit log', 'audit.view'], ['system', 'System', 'system.manage'],
+    ['users', 'Users', 'users.manage'], ['roles', 'Roles', can('roles.manage') ? 'roles.manage' : 'users.manage'], ['workflows', 'Workflows', 'roles.manage'], ['templates', 'Templates', 'templates.manage'],
+    ['spaces', 'Spaces', 'spaces.manage'], ['manufacturers', 'Manufacturers', 'lists.manage'],
+    ['lists', 'Lists', 'lists.manage'], ['imports', 'Imports', 'csv.import'], ['signin', 'Sign-in message', 'users.manage'], ['audit', 'Audit log', 'audit.view'], ['system', 'System', 'system.manage'],
   ].filter(([, , p]) => can(p));
+  let companies: any[] = $state([]);
+  const scopedRole = (name: string) => !!roles.find((r) => r.name === name)?.companyScope;
+  const expiring = (u: any) => u.expiresOn && u.expiresOn <= addDays(today(), 14);
 
   // Users ----------------------------------------------------------------
   let users: any[] = $state([]);
@@ -27,7 +37,12 @@
   async function loadUsersAdmin() { users = await get('/api/users'); }
   async function loadRoles() { const r = await get('/api/roles'); roles = r.roles; perms = r.permissions; }
   async function loadSpaces() { spaces = await get('/api/spaces'); }
-  if (section === 'users') { loadUsersAdmin(); loadRoles(); loadSpaces(); if (userId) loadUser(userId); }
+  if (section === 'users') {
+    loadUsersAdmin(); loadRoles(); loadSpaces(); if (userId) loadUser(userId);
+    get('/api/companies?active=1').then((c) => (companies = c)).catch(() => {});
+    const pre = route.query.get('company');
+    if (pre) newUser = { username: '', displayName: '', email: '', password: '', libraryRole: 'Vendor', spaceRoles: {}, company: pre, expiresOn: addDays(today(), 90) };
+  }
   async function loadUser(id: string) { user = await get('/api/users/' + id); }
   async function createUser() {
     try { await post('/api/users', newUser); newUser = null; toast('User created.'); loadUsersAdmin(); loadUsers(); } catch (e: any) { toast(e.message, 'error'); }
@@ -38,6 +53,27 @@
 
   // Roles ----------------------------------------------------------------
   if (section === 'roles') loadRoles();
+  async function copyRole(r: any) {
+    const name = prompt(`Name for the copy of ${r.name}`, r.name + ' (copy)');
+    if (!name) return;
+    try { await post(`/api/roles/${r.id}/copy`, { name }); toast(`${name} created.`); loadRoles(); } catch (e: any) { toast(e.message, 'error'); }
+  }
+  async function setPerm(r: any, key: string, on: boolean) {
+    const permissions = on ? [...r.permissions, key] : r.permissions.filter((p: string) => p !== key);
+    try { await patch('/api/roles/' + r.id, { permissions }); loadRoles(); refreshMe(); } catch (e: any) { toast(e.message, 'error'); loadRoles(); }
+  }
+  async function renameRole(r: any) {
+    const name = prompt('New role name', r.name);
+    if (!name || name === r.name) return;
+    try { await patch('/api/roles/' + r.id, { name }); loadRoles(); } catch (e: any) { toast(e.message, 'error'); }
+  }
+  async function setRoleActive(r: any, active: boolean) {
+    try { await patch('/api/roles/' + r.id, { active }); loadRoles(); } catch (e: any) { toast(e.message, 'error'); }
+  }
+  async function deleteRole(r: any) {
+    if (!confirm(`Delete ${r.name}?`)) return;
+    try { await del('/api/roles/' + r.id); loadRoles(); } catch (e: any) { toast(e.message, 'error'); }
+  }
   async function toggleApprovers(r: any) {
     try { await patch('/api/roles/' + r.id, { canManageApprovers: !r.canManageApprovers }); loadRoles(); refreshMe(); } catch (e: any) { toast(e.message, 'error'); }
   }
@@ -145,11 +181,14 @@
         <div class="grid2">
           <div class="field"><label for="ud">Display name</label><input id="ud" bind:value={user.displayName} /></div>
           <div class="field"><label for="ue">Email</label><input id="ue" bind:value={user.email} /></div>
-          <div class="field"><label for="ur">Library role</label><select id="ur" bind:value={user.libraryRole}>{#each roles as r}{#if r.name !== 'Super Admin' || session.me?.libraryRole === 'Super Admin'}<option>{r.name}</option>{/if}{/each}</select></div>
+          <div class="field"><label for="ur">Library role</label><select id="ur" bind:value={user.libraryRole}>{#each roles.filter((r) => r.appliesTo !== 'space' && (r.active || r.name === user.libraryRole)) as r}{#if r.name !== 'Super Admin' || session.me?.libraryRole === 'Super Admin'}<option>{r.name}</option>{/if}{/each}</select></div>
+          <div class="field"><label for="uc">Company{scopedRole(user.libraryRole) ? ' (required)' : ''}</label><select id="uc" bind:value={user.company}><option value="">None</option>{#each companies as c}<option value={c.id}>{c.name}</option>{/each}{#if user.company && !companies.find((c) => c.id === user.company)}<option value={user.company}>{user.companyName}</option>{/if}</select></div>
+          <div class="field"><label for="ux">Account expiry{scopedRole(user.libraryRole) ? ' (required)' : ''}</label><input id="ux" type="date" value={user.expiresOn || ''} oninput={(e) => (user.expiresOn = (e.target as HTMLInputElement).value)} /></div>
         </div>
-        <div class="row end"><button class="primary" onclick={() => updateUser({ displayName: user.displayName, email: user.email, libraryRole: user.libraryRole })}>Save</button></div>
+        <div class="row end"><button class="primary" onclick={() => updateUser({ displayName: user.displayName, email: user.email, libraryRole: user.libraryRole, company: user.company || '', expiresOn: user.expiresOn || '' })}>Save</button></div>
+        {#if user.expiresOn && user.expiresOn <= today()}<div class="banner warn">This account expired on {date(user.expiresOn)}. Extend the date to let it sign in again.</div>{/if}
         <h3>Space roles</h3>
-        <table class="data"><tbody>{#each spaces as s}<tr><td>{s.name}</td><td><select style="width: auto" value={user.spaceRoles[s.id] || ''} onchange={(e) => updateUser({ spaceRoles: { [s.id]: (e.target as HTMLSelectElement).value } })}><option value="">No access</option>{#each roles as r}<option>{r.name}</option>{/each}</select></td></tr>{/each}</tbody></table>
+        <table class="data"><tbody>{#each spaces as s}<tr><td>{s.name}</td><td><select style="width: auto" value={user.spaceRoles[s.id] || ''} onchange={(e) => updateUser({ spaceRoles: { [s.id]: (e.target as HTMLSelectElement).value } })}><option value="">No access</option>{#each roles.filter((r) => r.appliesTo !== 'library' && r.active) as r}<option>{r.name}</option>{/each}</select></td></tr>{/each}</tbody></table>
         {#if user.signInMethod === 'google'}
           <h3 style="margin-top: 1.25rem">Sign-in</h3>
           <p class="small muted">Signs in with Google as {user.email}. Signing PIN {user.signingPinSet ? 'set' : 'not set'}.</p>
@@ -164,18 +203,19 @@
         <p class="small muted">Users are never deleted, so their history stays attributed.</p>
       </div>
     {:else}
-      <div class="row end" style="margin-bottom: 0.75rem"><button class="primary" onclick={() => (newUser = { username: '', displayName: '', email: '', password: '', libraryRole: 'Viewer', spaceRoles: {} })}>New user</button></div>
+      <div class="row end" style="margin-bottom: 0.75rem"><button class="small" onclick={() => fullExport('users')}>Export CSV</button><button class="primary" onclick={() => (newUser = { username: '', displayName: '', email: '', password: '', libraryRole: 'Viewer', spaceRoles: {}, company: '', expiresOn: '' })}>New user</button></div>
       <div class="card table-wrap"><table class="data">
-        <thead><tr><th>Username</th><th>Display name</th><th class="hide-phone">Email</th><th>Library role</th><th>Active</th><th class="hide-phone">Sign-in</th><th class="hide-phone">Last sign-in</th></tr></thead>
-        <tbody>{#each users as u}<tr class="clickable" onclick={() => navigate('/admin/users/' + u.id)}><td>{u.username}</td><td>{u.displayName}</td><td class="hide-phone">{u.email}</td><td>{u.libraryRole}</td><td>{u.active ? 'Yes' : 'No'}</td><td class="hide-phone">{u.signInMethod === 'google' ? 'Google' : 'Password'}</td><td class="hide-phone">{dateTime(u.lastSignIn)}</td></tr>{/each}</tbody>
+        <thead><tr><th>Username</th><th>Display name</th><th class="hide-phone">Email</th><th>Library role</th><th class="hide-phone">Company</th><th>Expiry</th><th>Active</th><th class="hide-phone">Sign-in</th><th class="hide-phone">Last sign-in</th></tr></thead>
+        <tbody>{#each users as u}<tr class="clickable" onclick={() => navigate('/admin/users/' + u.id)}><td>{u.username}</td><td>{u.displayName}</td><td class="hide-phone">{u.email}</td><td>{u.libraryRole}</td><td class="hide-phone">{u.companyName}</td><td>{#if u.expiresOn}<span class:expiring={expiring(u)}>{date(u.expiresOn)}</span>{/if}</td><td>{u.active ? 'Yes' : 'No'}</td><td class="hide-phone">{u.signInMethod === 'google' ? 'Google' : 'Password'}</td><td class="hide-phone">{dateTime(u.lastSignIn)}</td></tr>{/each}</tbody>
       </table></div>
     {/if}
   {:else if section === 'roles'}
-    <p class="small muted">Built-in roles. Each user has one library role and one role per space.</p>
+    <p class="small muted">Each user has one library role and one role per space. Built-in roles are read only; copy a role to make your own. Vendor and Contractor roles and their copies keep company scoping.</p>
     <div class="card table-wrap"><table class="data">
-      <thead><tr><th>Permission</th>{#each roles as r}<th>{r.name}</th>{/each}</tr></thead>
+      <thead><tr><th>Permission</th>{#each roles as r}<th style="text-align: center; vertical-align: bottom" class:inactive={!r.active}>{r.name}{#if !r.builtIn}<br /><span class="pill">Custom</span>{/if}{#if !r.active}<br /><span class="small muted">Inactive</span>{/if}
+        {#if can('roles.manage')}<div class="row" style="justify-content: center; gap: 2px; margin-top: 3px">{#if r.name !== 'Super Admin'}<button class="small ghost" onclick={() => copyRole(r)}>Copy...</button>{/if}{#if !r.builtIn}<button class="small ghost" onclick={() => renameRole(r)}>Rename...</button><button class="small ghost" onclick={() => setRoleActive(r, !r.active)}>{r.active ? 'Deactivate' : 'Activate'}</button><button class="small ghost danger" onclick={() => deleteRole(r)}>Delete</button>{/if}</div>{/if}</th>{/each}</tr></thead>
       <tbody>
-        {#each perms as p}<tr><td>{p.Label}</td>{#each roles as r}<td style="text-align: center">{#if r.permissions.includes(p.Key)}<Icon name="check" size={14} />{/if}</td>{/each}</tr>{/each}
+        {#each perms as p}<tr><td>{p.Label}</td>{#each roles as r}<td style="text-align: center">{#if !r.builtIn && can('roles.manage')}<input type="checkbox" checked={r.permissions.includes(p.Key)} onchange={(e) => setPerm(r, p.Key, (e.target as HTMLInputElement).checked)} aria-label="{r.name}: {p.Label}" />{:else if r.permissions.includes(p.Key)}<Icon name="check" size={14} />{/if}</td>{/each}</tr>{/each}
         <tr><td>Add or remove change order approvers</td>{#each roles as r}<td style="text-align: center"><input type="checkbox" checked={r.canManageApprovers} onchange={() => toggleApprovers(r)} aria-label="{r.name} manages approvers" /></td>{/each}</tr>
       </tbody>
     </table></div>
@@ -229,8 +269,14 @@
       <div class="field"><label for="sm">Message shown above the sign-in form (empty hides it)</label><textarea id="sm" bind:value={sys.signInMessage}></textarea></div>
       <div class="row end"><button class="primary" onclick={() => saveSys({ signInMessage: sys.signInMessage })}>Save</button></div>
     </div>{/if}
+  {:else if section === 'workflows'}
+    <WorkflowEditor />
+  {:else if section === 'templates'}
+    <TemplatesAdmin />
+  {:else if section === 'imports'}
+    <ImportsAdmin />
   {:else if section === 'audit'}
-    <div class="row" style="margin-bottom: 0.75rem"><input style="max-width: 320px" placeholder="Filter by action, user, record or detail" bind:value={auditQ} onchange={() => loadAudit()} /><button onclick={() => loadAudit()}>Filter</button></div>
+    <div class="row" style="margin-bottom: 0.75rem"><button class="small" style="order: 9" onclick={() => fullExport('audit')}>Export CSV</button><input style="max-width: 320px" placeholder="Filter by action, user, record or detail" bind:value={auditQ} onchange={() => loadAudit()} /><button onclick={() => loadAudit()}>Filter</button></div>
     <div class="card table-wrap"><table class="data"><thead><tr><th>When</th><th>User</th><th>Action</th><th>Record</th><th>Detail</th><th class="hide-phone">Address</th></tr></thead>
       <tbody>{#each audit as a}<tr><td style="white-space: nowrap">{dateTime(a.at)}</td><td>{a.username}</td><td>{a.action}</td><td class="id">{a.recordId}</td><td class="small mono" style="max-width: 420px; word-break: break-all">{JSON.stringify(a.detail)}</td><td class="hide-phone">{a.ip}</td></tr>{/each}</tbody></table></div>
     {#if audit.length >= 200}<button style="margin-top: 0.75rem" onclick={() => loadAudit(true)}>Older entries</button>{/if}
@@ -281,6 +327,7 @@
           <dt>Database</dt><dd>{status.database.connected ? 'Connected' : 'Not connected'}{#if status.database.server}<br /><span class="small muted">{status.database.server}</span>{/if}</dd>
           <dt>Database size</dt><dd>{bytes(status.database.sizeBytes || 0)}</dd>
           <dt>Migrations</dt><dd class="small">{(status.database.migrations || []).join(', ')}</dd>
+          <dt>PDF service</dt><dd>{status.pdf || '-'}</dd>
           <dt>Repository head</dt><dd class="mono small">{status.repository.head}</dd>
           <dt>Baselines</dt><dd>{status.repository.baselines}</dd>
           <dt>Records</dt><dd class="small">{Object.entries(status.records).map(([k, n]) => `${k} ${n}`).join(', ')}</dd>
@@ -298,8 +345,12 @@
     <div class="field"><label for="nd">Display name</label><input id="nd" bind:value={newUser.displayName} /></div>
     <div class="field"><label for="ne">Email</label><input id="ne" bind:value={newUser.email} /></div>
     <div class="field"><label for="np">Password (at least 10 characters)</label><input id="np" type="password" autocomplete="new-password" bind:value={newUser.password} /></div>
-    <div class="field"><label for="nr">Library role</label><select id="nr" bind:value={newUser.libraryRole}>{#each roles as r}{#if r.name !== 'Super Admin' || session.me?.libraryRole === 'Super Admin'}<option>{r.name}</option>{/if}{/each}</select></div>
-    {#each spaces as s}<div class="field"><label for="sr-{s.id}">Role in {s.name}</label><select id="sr-{s.id}" bind:value={newUser.spaceRoles[s.id]}><option value="">No access</option>{#each roles as r}<option>{r.name}</option>{/each}</select></div>{/each}
+    <div class="field"><label for="nr">Library role</label><select id="nr" bind:value={newUser.libraryRole}>{#each roles.filter((r) => r.appliesTo !== 'space' && r.active) as r}{#if r.name !== 'Super Admin' || session.me?.libraryRole === 'Super Admin'}<option>{r.name}</option>{/if}{/each}</select></div>
+    <div class="grid2">
+      <div class="field"><label for="nc">Company{scopedRole(newUser.libraryRole) ? ' (required)' : ''}</label><select id="nc" bind:value={newUser.company}><option value="">None</option>{#each companies as c}<option value={c.id}>{c.name}</option>{/each}</select></div>
+      <div class="field"><label for="nx">Account expiry{scopedRole(newUser.libraryRole) ? ' (required)' : ''}</label><input id="nx" type="date" bind:value={newUser.expiresOn} /></div>
+    </div>
+    {#each spaces as s}<div class="field"><label for="sr-{s.id}">Role in {s.name}</label><select id="sr-{s.id}" bind:value={newUser.spaceRoles[s.id]}><option value="">No access</option>{#each roles.filter((r) => r.appliesTo !== 'library' && r.active) as r}<option>{r.name}</option>{/each}</select></div>{/each}
     {#snippet footer()}<button onclick={() => (newUser = null)}>Cancel</button><button class="primary" onclick={createUser}>Create</button>{/snippet}
   </Modal>
 {/if}
@@ -310,3 +361,8 @@
     {#snippet footer()}<button onclick={() => (newSpace = null)}>Cancel</button><button class="primary" onclick={createSpace}>Create</button>{/snippet}
   </Modal>
 {/if}
+
+<style>
+  .expiring { color: var(--warn); font-weight: 600; }
+  th.inactive { opacity: 0.6; }
+</style>

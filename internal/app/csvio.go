@@ -1137,7 +1137,36 @@ func (a *App) apiImports(w http.ResponseWriter, r *http.Request) error {
 		}
 		out = append(out, x)
 	}
-	return ok(w, out)
+	var samples []map[string]string
+	a.Setting("import_samples", &samples)
+	return ok(w, map[string]any{"imports": out, "samples": nzMaps(samples)})
+}
+
+func nzMaps(m []map[string]string) []map[string]string {
+	if m == nil {
+		return []map[string]string{}
+	}
+	return m
+}
+
+// apiImportSample downloads one of the seed sample files.
+func (a *App) apiImportSample(w http.ResponseWriter, r *http.Request) error {
+	var samples []map[string]string
+	a.Setting("import_samples", &samples)
+	for _, smp := range samples {
+		if smp["sha256"] == r.PathValue("sha") {
+			f, err := a.Files.Open(smp["sha256"])
+			if err != nil {
+				return errNotFound
+			}
+			defer f.Close()
+			w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, smp["name"]))
+			_, err = io.Copy(w, f)
+			return err
+		}
+	}
+	return errNotFound
 }
 
 // apiImportFile downloads the file of a past import.

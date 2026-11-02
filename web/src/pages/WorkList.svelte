@@ -6,6 +6,11 @@
   import { date, kindLabel } from '../lib/format';
   import Status from '../components/Status.svelte';
   import Modal from '../components/Modal.svelte';
+  import Menu from '../components/Menu.svelte';
+  import ImportDialog from '../components/ImportDialog.svelte';
+  import { can } from '../lib/state.svelte';
+  import { exportCSV, fullExport } from '../lib/exporting';
+  import { hours } from '../lib/format';
   import { onDestroy, untrack } from 'svelte';
   let { params, pattern }: { params: any; pattern?: string } = $props();
   const space = untrack(() => params.id);
@@ -15,11 +20,18 @@
     { key: 'id', label: 'ID' }, { key: 'type', label: 'Type' }, { key: 'title', label: 'Title' }, { key: 'status', label: 'Status' }, { key: 'priority', label: 'Priority' },
     { key: 'assignee', label: 'Assignee' }, { key: 'dueDate', label: 'Due' }, { key: 'epic', label: 'Epic' }, { key: 'labels', label: 'Labels' },
     { key: 'foundOn', label: 'Found on' }, { key: 'severity', label: 'Severity' }, { key: 'updated', label: 'Updated' },
+    { key: 'estimate', label: 'Estimate' }, { key: 'logged', label: 'Logged' }, { key: 'remaining', label: 'Remaining' },
+    { key: 'sprint', label: 'Sprint' }, { key: 'milestone', label: 'Milestone' },
   ];
+  let importing = $state(false);
+  let names: Record<string, string> = $state({});
+  get(`/api/spaces/${untrack(() => params.id)}/sprints`, { background: true }).then((r) => { for (const s of r) names[s.id] = s.name; sprintList = r; }).catch(() => {});
+  get(`/api/spaces/${untrack(() => params.id)}/milestones`, { background: true }).then((r) => { for (const m of r) names[m.id] = m.name; }).catch(() => {});
+  let sprintList: any[] = $state([]);
   const defCols = ncr ? ['id', 'title', 'status', 'severity', 'foundOn', 'assignee', 'dueDate'] : ['id', 'type', 'title', 'status', 'priority', 'assignee', 'dueDate'];
   let rows: any[] = $state([]);
   let cols: string[] = $state(defCols);
-  let f = $state({ text: '', type: route.query.get('type') || '', status: '', assignee: '', open: true });
+  let f = $state({ text: '', type: route.query.get('type') || '', status: '', assignee: '', open: true, sprint: '' });
   let saved: any[] = $state([]);
   let colDialog = $state(false);
   let sortKey = $state('id');
@@ -34,7 +46,7 @@
   const shown = $derived.by(() => {
     const t = f.text.toLowerCase();
     return rows.filter((r) => (!f.type || r.type === f.type) && (!f.status || r.status === f.status) && (!f.assignee || r.assigneeId === f.assignee)
-      && (!f.open || !['Done', 'Cancelled', 'Closed'].includes(r.status)) && (!t || r.id.toLowerCase().includes(t) || r.title.toLowerCase().includes(t)))
+      && (!f.open || r.category === 'open' || r.category === 'active') && (!f.sprint || (f.sprint === 'none' ? !r.sprint : r.sprint === f.sprint)) && (!t || r.id.toLowerCase().includes(t) || r.title.toLowerCase().includes(t)))
       .sort((a, b) => String(a[sortKey] ?? '').localeCompare(String(b[sortKey] ?? ''), undefined, { numeric: true }) * dir);
   });
   function cell(r: any, k: string) {
@@ -42,6 +54,8 @@
     if (k === 'dueDate') return date(r.dueDate);
     if (k === 'labels') return (r.labels || []).join(', ');
     if (k === 'updated') return date(r.updated);
+    if (k === 'estimate' || k === 'logged' || k === 'remaining') return hours(r[k]);
+    if (k === 'sprint' || k === 'milestone') return names[r[k]] || r[k] || '';
     return r[k] ?? '';
   }
   async function saveFilter() {
@@ -50,18 +64,32 @@
     await post('/api/filters', { view: prefKey, name, filter: { ...f } }).catch((e) => toast(e.message, 'error'));
     saved = await get('/api/filters?view=' + prefKey);
   }
-  const states = ncr ? ['Reported', 'Dispositioned', 'Corrective Action', 'Verified', 'Closed'] : ['Open', 'In Progress', 'In Review', 'Blocked', 'Done', 'Cancelled'];
+  let states: string[] = $state(ncr ? ['Reported', 'Dispositioned', 'Corrective Action', 'Verified', 'Closed'] : ['Open', 'In Progress', 'In Review', 'Blocked', 'Done', 'Cancelled']);
+  get('/api/workflows', { background: true }).then((r) => {
+    const out: string[] = [];
+    for (const t of ncr ? ['ncr'] : ['task', 'issue', 'action', 'epic']) for (const s of r.workflows[t].states) if (!out.includes(s.name)) out.push(s.name);
+    states = out;
+  }).catch(() => {});
+  function exportTable() {
+    exportCSV((ncr ? 'NCR list ' : 'Work list ') + spaceName(space), cols.map((c) => ({ label: allCols.find((x) => x.key === c)?.label || c, value: (r: any) => cell(r, c) })), shown);
+  }
   function moveCol(i: number, d: number) { const c = [...cols]; const j = i + d; if (j < 0 || j >= c.length) return; [c[i], c[j]] = [c[j], c[i]]; cols = c; }
 </script>
 
 <div class="content">
   <div class="row" style="margin-bottom: 1rem"><h1 style="margin: 0">{ncr ? 'NCR List' : 'List'}</h1><span class="muted">{spaceName(space)}</span><span class="spacer"></span>
+    <Menu label="Actions" cls="small">
+      <button onclick={exportTable}>Export CSV</button>
+      <button onclick={() => fullExport('work', `space=${space}&type=${ncr ? 'ncr' : 'task,issue,action,epic'}`)}>Export all fields (CSV)...</button>
+      {#if !ncr && can('csv.import') && canIn(space, 'work.edit')}<hr /><button onclick={() => (importing = true)}>Import CSV...</button>{/if}
+    </Menu>
     {#if canIn(space, 'work.edit')}<a class="btn primary" href="/work/new?space={space}&type={ncr ? 'ncr' : 'task'}">New {ncr ? 'NCR' : 'item'}</a>{/if}</div>
   <div class="row" style="margin-bottom: 0.75rem">
     <input style="max-width: 240px" placeholder="Filter" bind:value={f.text} aria-label="Filter" />
     {#if !ncr}<select style="width: auto" bind:value={f.type} aria-label="Type"><option value="">All types</option><option value="task">Tasks</option><option value="issue">Issues</option><option value="action">Actions</option><option value="epic">Epics</option></select>{/if}
     <select style="width: auto" bind:value={f.status} aria-label="Status"><option value="">Any status</option>{#each states as s}<option>{s}</option>{/each}</select>
     <select style="width: auto" bind:value={f.assignee} aria-label="Assignee"><option value="">Anyone</option><option value={session.me?.id}>Me</option>{#each session.users.filter((u) => u.active && u.id !== session.me?.id) as u}<option value={u.id}>{u.displayName}</option>{/each}</select>
+    {#if !ncr}<select style="width: auto" bind:value={f.sprint} aria-label="Sprint"><option value="">Any sprint</option>{#each sprintList as s}<option value={s.id}>{s.name}{s.state === 'Active' ? ' (active)' : ''}</option>{/each}<option value="none">No sprint</option></select>{/if}
     <label class="checkbox"><input type="checkbox" bind:checked={f.open} /> Open only</label>
     <span class="spacer"></span>
     {#if saved.length}<select style="width: auto" aria-label="Saved filters" onchange={(e) => { const s = saved.find((x) => x.id === (e.target as HTMLSelectElement).value); if (s) f = { ...f, ...s.filter }; (e.target as HTMLSelectElement).value = ''; }}><option value="">Saved filters</option>{#each saved as s}<option value={s.id}>{s.name}</option>{/each}</select>{/if}
@@ -86,3 +114,5 @@
     {#snippet footer()}<button onclick={() => (cols = defCols)}>Reset</button><button class="primary" onclick={() => { colDialog = false; put('/api/prefs/' + prefKey, cols).catch(() => {}); }}>Save</button>{/snippet}
   </Modal>
 {/if}
+
+{#if importing}<ImportDialog type="work" target={space} title="work items" onclose={() => (importing = false)} ondone={load} />{/if}

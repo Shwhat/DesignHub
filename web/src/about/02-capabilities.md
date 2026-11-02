@@ -13,6 +13,7 @@ This page lists what DesignHub does in the current version, followed by what is 
 - Manufacturer list for purchased part numbers.
 - Conversion of a reference part to a production part.
 - Library list with saved filters and a choice of columns per tab.
+- Companies (vendors, contractors, customers) with supplier status, contacts and the items each one supplies. Suppliers can be changed on released items without a change order.
 
 ### Bill of Design
 
@@ -44,6 +45,8 @@ This page lists what DesignHub does in the current version, followed by what is 
 - Page comments with replies, @mentions and resolve.
 - Version history with comparison between any two versions, and restore.
 - Drag and drop to reorder and move pages.
+- Page templates with placeholders, company-wide or per space. Six templates come with DesignHub.
+- Inline comments on selected text, highlighted in the page, and internal comments hidden from Vendors.
 
 ### Work
 
@@ -52,6 +55,10 @@ This page lists what DesignHub does in the current version, followed by what is 
 - My Work: items assigned to you, overdue first.
 - NCR workflow with signed disposition approvals and a required change order when a design change is needed.
 - Creating a change order directly from an NCR.
+- Editable workflows for tasks, issues, actions, epics and NCRs: states, categories, transitions by role and required fields.
+- Sprints with a backlog, start and close; milestones with progress and health; a timeline by epic or milestone.
+- Estimates, time logging, My time and time reports.
+- Supplier responses on NCRs, and supplier documents.
 
 ### Notifications and search
 
@@ -59,9 +66,17 @@ This page lists what DesignHub does in the current version, followed by what is 
 - Live updates: changes made by others appear without reloading.
 - Full-text search across pages, engineering items and work items, with filters.
 
+### Export and import
+
+- CSV export from every list and table, and a full export of every record type.
+- CSV import of parts, Bill of Design lines, requirements, work items, manufacturers and companies, with a preview. Nothing is saved while any row has an error.
+- PDF export of pages (with the pages below them), engineering items, change orders, work items and NCRs.
+
 ### Administration
 
 - Users, roles and space membership.
+- Custom roles copied from existing roles.
+- Vendor and Contractor accounts linked to a company, with account expiry.
 - Admin lists (units of measure, document types, page types and others) and file roles.
 - Sign-in message, allowed addresses and change order rejection behavior.
 - Google sign-in limited to allowed domains and addresses, with optional removal of password sign-in.
@@ -80,5 +95,6 @@ These are part of the release plan and are not available yet.
 
 | Version | Planned features |
 |---|---|
-| 2 | Vendor and Contractor roles with company scoping and account expiry; custom roles and editable workflows; sprints, milestones, timeline view and time tracking; page templates, inline comments and PDF export; email notifications; CSV import and export |
+| 2 | Email notifications, once a mail server is chosen |
+| Later | Work item dashboard |
 | 3 | Time-series data with charts, test data and production metrics; work instructions, as-built records, inspection and test records; supplier, equipment and location records; effectivity; deviations and waivers; optional online part data and lifecycle services |

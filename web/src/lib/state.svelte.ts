@@ -28,6 +28,10 @@ export interface Me {
   canManageApprovers: boolean;
   signInMethod: string;
   signingPinSet: boolean;
+  company?: string;
+  companyName?: string;
+  expiresOn?: string | null;
+  scope?: 'vendor' | 'contractor' | '';
 }
 
 export interface UserRef {
@@ -53,6 +57,9 @@ export const session = $state({
 export function can(p: string) {
   return !!session.me?.permissions.includes(p);
 }
+
+export const isVendor = () => session.me?.scope === 'vendor';
+export const isContractor = () => session.me?.scope === 'contractor';
 
 export function canIn(space: string, p: string) {
   return !!session.me?.spaces.find((s) => s.id === space)?.permissions?.includes(p);

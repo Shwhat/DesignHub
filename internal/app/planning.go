@@ -144,6 +144,9 @@ func (a *App) apiCreateSprint(w http.ResponseWriter, r *http.Request) error {
 			id, in.Space, name, strings.TrimSpace(deref(in.Goal)), *in.Start, *in.End, u.ID); err != nil {
 			return err
 		}
+		if _, err := tx.Exec(ctx, `INSERT INTO records (id, kind, title, status, space_id, body, origin) VALUES ($1, 'sprint', $2, 'Planned', $3, $4, 'db')`, id, name, in.Space, deref(in.Goal)); err != nil {
+			return err
+		}
 		a.auditQ(ctx, tx, u, clientIP(r), "sprint.create", id, map[string]string{"name": name})
 		return nil
 	})
@@ -195,6 +198,7 @@ func (a *App) apiUpdateSprint(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
+	a.DB.Exec(ctx, `UPDATE records SET title = $2, body = $3 WHERE id = $1`, s.ID, s.Name, s.Goal)
 	a.Events.Publish(Event{Type: "board", Space: s.Space})
 	return ok(w, nil)
 }
@@ -238,6 +242,7 @@ func (a *App) apiStartSprint(w http.ResponseWriter, r *http.Request) error {
 	if _, err := a.DB.Exec(ctx, `UPDATE sprints SET state = 'Active', committed = $2 WHERE id = $1 AND state = 'Planned'`, s.ID, committed); err != nil {
 		return err
 	}
+	a.DB.Exec(ctx, `UPDATE records SET status = 'Active' WHERE id = $1`, s.ID)
 	a.Audit(ctx, u, clientIP(r), "sprint.start", s.ID, map[string]any{"items": len(ids)})
 	for _, id := range assignees {
 		a.notify(ctx, u, id, "Sprint started", "", fmt.Sprintf("Sprint %s started: %s", s.Name, s.Goal))
@@ -316,6 +321,7 @@ func (a *App) apiCloseSprint(w http.ResponseWriter, r *http.Request) error {
 		if _, err := tx.Exec(ctx, `UPDATE sprints SET state = 'Closed', completed = $2 WHERE id = $1`, s.ID, completed); err != nil {
 			return err
 		}
+		tx.Exec(ctx, `UPDATE records SET status = 'Closed' WHERE id = $1`, s.ID)
 		a.auditQ(ctx, tx, u, clientIP(r), "sprint.close", s.ID, map[string]any{"done": len(done), "moved": len(moved), "movedTo": in.MoveTo})
 		return nil
 	})

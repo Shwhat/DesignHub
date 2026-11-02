@@ -7,7 +7,7 @@ Purpose: everything needed to continue DesignHub in a new conversation. This doc
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md, docs/TEST-PLAN.md and docs/TEST-PLAN-V2.md. Version 1 is installed on my VM and testing is in progress. Version 2 is being specified: PR #8 (restyle) and PR #9 (version 2 documents) are open for review. The next steps are in the handoff.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md, docs/TEST-PLAN.md and docs/TEST-PLAN-V2.md. Version 1 is installed on my VM and testing is in progress. Version 2 is built on branch v2-build and PR #10 is open for review. Email notifications wait for a mail server decision. The next steps are in the handoff.
 
 ## Documents
 
@@ -54,9 +54,9 @@ All documents and code are on `main`.
 | 9. Fix the bug list, one branch per fix or group of fixes | PR #4 merged. Bug 3 in PR #8. Bugs 1 and 4 closed. |
 | 10. Google sign-in, pulled forward from v2 | Complete (PR #6) |
 | 11. In-app About guide | Complete (PR #7) |
-| 12. Restyle to match OpenSchem (bug 3) | Done on branch `restyle-openschem`, PR #8 open for review |
-| 13. Version 2 documents: data model, screens, test plan | Written on branch `docs/spec-v2`, PR #9 open for review |
-| 14. Build version 2 on branch `v2-build`, one pull request at the end | Waits on PR #9 approval. Email built last, once the mail server is decided. |
+| 12. Restyle to match OpenSchem (bug 3) | Complete (PR #8) |
+| 13. Version 2 documents: data model, screens, test plan | Complete (PR #9) |
+| 14. Build version 2 on branch `v2-build`, one pull request at the end | Built, PR #10 open. Email not built (mail server undecided). |
 | 15. Devon tests version 2 with TEST-PLAN-V2.md | Not started |
 
 ## Pull request history
@@ -70,8 +70,9 @@ All documents and code are on `main`.
 | #5 | Update handoff | 2026-10-31 |
 | #6 | Google sign-in with allowed domains and addresses, signing PIN and recovery | 2026-10-31 |
 | #7 | About guide inside the app, version 1.2.0 | 2026-11-01 |
-| #8 | Restyle to match OpenSchem (bug 3), version 1.2.1 | Open |
-| #9 | Version 2 data model, screens and test plan | Open |
+| #8 | Restyle to match OpenSchem (bug 3), version 1.2.1 | 2026-11-02 |
+| #9 | Version 2 data model, screens and test plan | 2026-11-02 |
+| #10 | Version 2, version 2.0.0 | Open |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
@@ -138,7 +139,7 @@ Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from
 |---|---|---|---|
 | 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Closed. Tree part resolved; the rest dropped by Devon 2026-11-01. |
 | 2 | Parts do not show under Library. The item count goes up. | Cause: `GET /api/prefs/{key}` returned `{"ok":true}` when the user had no saved preference, so Library used that object as its column list and drew no columns. The work List view had the same fault. | Fixed in PR #4. Devon to retest. |
-| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. Direction agreed 2026-10-31: match OpenSchem's styling (program-design-guide.md) so the programs feel like one set: tokens, light and dark themes, typography, spacing, buttons, menus, dialogs, lists and icon style. Stay on Svelte and keep the current DesignHub layout; the OpenSchem ribbon, docking panels and plain-JavaScript structure are not adopted. | Done in PR #8: OpenSchem tokens and themes, system font, compact desktop sizing with touch-sized controls on phones, OpenSchem-style inline SVG icons (`web/src/lib/icons.ts`, `components/Icon.svelte`). Inter removed. Devon to review. |
+| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. Direction agreed 2026-10-31: match OpenSchem's styling (program-design-guide.md) so the programs feel like one set: tokens, light and dark themes, typography, spacing, buttons, menus, dialogs, lists and icon style. Stay on Svelte and keep the current DesignHub layout; the OpenSchem ribbon, docking panels and plain-JavaScript structure are not adopted. | Done in PR #8 (merged): OpenSchem tokens and themes, system font, compact desktop sizing with touch-sized controls on phones, OpenSchem-style inline SVG icons (`web/src/lib/icons.ts`, `components/Icon.svelte`). Inter removed. Devon to check on the VM. |
 | 4 | "where" (message cut off) | Dropped by Devon 2026-10-31 | Closed |
 
 ### PR #4 detail
@@ -193,7 +194,7 @@ Decisions made with Devon on 2026-11-01:
 | CSV import | Parts, BOM lines, requirements, work items, manufacturers, companies (to confirm in PR #9 review) |
 | Mail server | To be decided. Email notifications are built last. |
 
-Defaults proposed in the v2 documents for Devon's review (not yet confirmed):
+Defaults in the v2 documents (merged in PR #9, built in PR #10):
 
 | Topic | Proposal | Where |
 |---|---|---|
@@ -207,6 +208,51 @@ Defaults proposed in the v2 documents for Devon's review (not yet confirmed):
 | Time entries | 0.25 h steps, up to 24 h, no future dates; not on epics | DATA-MODEL 7.24 |
 | Templates | Stored in git under `templates/`; scope all spaces or one space | DATA-MODEL 7.25 |
 | Dashboard view | Moved after v2 | SPEC 9.4 |
+
+### Version 2 build (branch `v2-build`, PR #10)
+
+| Area | Server | Screens |
+|---|---|---|
+| Companies, supplied-by links, supplier documents | `internal/app/companies.go` | `pages/CompanyView.svelte`, `components/CompanyList.svelte`, `components/ItemSuppliers.svelte` |
+| Vendor and Contractor scoping | `visible()` in `store.go`, `loadVendorScope` and `vendorItem` in `companies.go`, `User.Scope` in `users.go` | `pages/VendorHome.svelte`, `pages/SupplierNCRs.svelte`, sidebar and top bar |
+| Account expiry | `loadUser`, `accountExpired`, `expiryNotices` (hourly) | Admin, Users; expiry banner in `Layout.svelte` |
+| Internal and inline comments | `records.go` (`internal`, `anchor` columns) | `components/Comments.svelte`, `pages/PageView.svelte`, `lib/inline.svelte.ts` |
+| Custom roles | `apiCopyRole`, `apiUpdateRole`, `apiDeleteRole`, `checkPermissions` in `users.go` | Admin, Roles |
+| Editable workflows | `internal/app/workflows.go`; `work_items.state_cat` holds the category | `components/WorkflowEditor.svelte`; board and list columns follow the workflow |
+| Sprints, milestones, time, timeline | `internal/app/planning.go` | `pages/Sprints.svelte`, `SprintView.svelte`, `Milestones.svelte`, `Timeline.svelte`, `TimeReport.svelte`, `MyTime.svelte`, `components/TimeEntries.svelte` |
+| Templates | `internal/app/templates.go` (PostgreSQL, six initial templates created on first start) | New page dialog in `Sidebar.svelte`, `components/TemplatesAdmin.svelte` |
+| CSV | `internal/app/csvio.go` | `lib/exporting.ts`, `components/ImportDialog.svelte`, `components/ImportsAdmin.svelte` |
+| PDF | `internal/app/pdf.go`, `pdf` service (Gotenberg 8, Chromium only) in `docker-compose.yml` on an internal network | `components/PdfDialog.svelte`, `lib/exporting.ts` |
+| Migration | `internal/db/migrations/0004_v2.sql` | |
+| Seed data | `internal/app/seed_v2.go` (TEST-PLAN-V2.md Appendix A, sample CSV files in Admin, Imports) | |
+| Tests | `internal/app/v2_test.go`: vendor and contractor scope, expiry, custom roles, workflows, sprints, milestones, time, templates, CSV import, BOM import | |
+
+Not built, or built differently from the documents:
+
+| Item | State |
+|---|---|
+| Email notifications (SCREENS.md 27, TEST-PLAN-V2.md 6.14) | Not built. Waits for the mail server decision. |
+| Inline comments on long text fields of records (ICM-05, Should) | Not built. Pages only. |
+| Quick time logging from board cards | Not built. "Log time..." opens the item's Time tab. SCREENS.md updated. |
+| Background PDF export for large page trees | Not built. Page trees are capped at 200 pages. SCREENS.md updated. |
+| Missing required fields on a status change | Opens the item for editing with a note; saving moves it. SCREENS.md updated. |
+| Templates storage | PostgreSQL with every body version, not git. DATA-MODEL.md updated. |
+| Version number | 2.0.0 for the version 2 release, rather than a minor step |
+
+Behavior notes:
+
+- A workflow's state category is stored per item (`state_cat`) and updated on every status change and workflow save. SQL that needs "open" items uses `state_cat IN ('open', 'active')`.
+- Vendor visibility is a set of record IDs loaded with the user on each request (`User.VendorSees`). Never-released items are never in it.
+- Company-scoped accounts never inherit space access through Manage spaces, and never see change orders, baselines or library validation.
+- PDF export: the browser sends the record's HTML with styles and images inlined; the server strips scripts, adds the header and footer from the record itself, and calls Gotenberg. Gotenberg runs with JavaScript off and only `file:///tmp` allowed.
+- CSV import validates every row first. Engineering items are created one commit at a time, so if a later row fails while saving (for example a number taken by someone else in the meantime) the earlier rows stay saved and the error names the row.
+- Table exports are built in the browser and reported to `POST /api/exports/log` for the audit log. Full exports are `GET /api/exports/{type}`.
+
+Verification for PR #10:
+
+- `go vet` clean. All Go tests pass against PostgreSQL, including the new v2 tests.
+- `svelte-check`: 0 errors, 0 warnings.
+- No frontend build, no browser run and no Gotenberg run, because no build has been approved. The screens and PDF export are therefore unverified in a browser.
 
 ## Google sign-in (branch `google-signin`)
 
@@ -339,10 +385,10 @@ Done for PR #4 (2026-10-31):
 
 ### Next steps
 
-1. Devon reviews and merges PR #8 (restyle), pulls the image and checks every screen in light and dark and on the phone.
-2. Devon reviews PR #9 (version 2 documents): the proposed defaults in the Version 2 section above and the CSV import list.
-3. After PR #9 is approved: build version 2 on `v2-build` from `main`, one pull request at the end. Email last.
-4. Devon decides the mail server.
+1. Devon reviews PR #10. Approving a frontend build and a browser run here would let the new screens and PDF export be checked before merge.
+2. After merging PR #10, Devon saves the new `docker-compose.yml` on the VM (it adds the `pdf` service), then pulls and starts: `docker compose pull && docker compose up -d`.
+3. Devon tests with TEST-PLAN-V2.md.
+4. Devon decides the mail server; then email notifications are built.
 5. Devon continues TEST-PLAN.md and the retest list above, and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
