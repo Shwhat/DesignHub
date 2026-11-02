@@ -1,0 +1,35 @@
+# Release notes
+
+The installed version is shown at the top of this guide.
+
+## 1.2.0 (2026-11-01): About guide
+
+- New About guide, reachable from the sidebar and the profile menu, describing what DesignHub does, the rules it follows and its record specifications.
+
+## 1.1.0 (2026-10-31): Google sign-in
+
+- Google sign-in, limited to allowed Google Workspace domains and individually allowed addresses, configured in Admin, System.
+- New Google users start as Viewer with no space access.
+- Existing accounts link to Google by email on first Google sign-in.
+- Password sign-in can be turned off for everyone.
+- Signing PIN for Google users, used for approvals, releases and NCR decisions. Admins can clear a forgotten PIN.
+- Recovery command on the server for a locked-out Super Admin.
+
+## 1.0.1 (2026-10-31): Fixes
+
+- Library now shows its columns and rows when no column choice has been saved. The work List view had the same fault.
+- Phone search icon resized to match the other top bar icons.
+- Banner text, such as on released change orders, no longer shows gaps around links.
+
+## 1.0.0 (2026-10-30): Version 1
+
+First release, with:
+
+- Library of parts, assemblies, requirements, procedures and documents, with numbering, revisions, attachments and the manufacturer list.
+- Bill of Design with extended quantities, where-used and validation.
+- Traceability and backlinks.
+- Change orders with approvals, electronic signatures, release and signed baselines.
+- Spaces and pages with four editing modes, live blocks, comments, history and controlled pages.
+- Tasks, issues, NCRs, actions and epics with board, list and My Work views.
+- Notifications, watchers, live updates and full-text search.
+- Users, roles, record locking, audit log, scheduled backups and restore.

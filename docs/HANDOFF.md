@@ -1,13 +1,13 @@
 # DesignHub Handoff
 
-Date: 2026-10-31 (updated 12:10)
+Date: 2026-11-01
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. PR #6 (Google sign-in) is open for review. The next steps are in the handoff.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. PR #6 (Google sign-in) is merged. The About guide pull request is open for review. The next steps are in the handoff.
 
 ## Documents
 
@@ -18,6 +18,8 @@ Paste this into the new chat:
 | `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.2, complete |
 | `docs/TEST-PLAN.md` | v1 test plan: checklist, phone and tablet checks, scenarios, seed data | v0.2, complete |
 | `docs/FRONTEND.md` | Frontend framework and editor selection | v0.1, complete |
+| `docs/GOOGLE-SIGNIN-SETUP.md` | Operator guide: Google Cloud OAuth client and DesignHub Google sign-in settings | v0.1, complete |
+| `web/src/about/*.md` | In-app About guide: capabilities, rules, record fields, technical, release notes | Maintained with every pull request |
 | `docs/HANDOFF.md` | This document: rules, state, bug list, next steps, technical notes | Current |
 
 All documents and code are on `main`.
@@ -34,6 +36,7 @@ All documents and code are on `main`.
 - Deliverable documents contain no tips or meta-commentary.
 - When reviewing a series of items, show progress as "N of M".
 - Work on branches. Devon reviews and merges into `main`.
+- Every pull request that changes what the app does, or the rules it follows, also updates the About guide in `web/src/about`: the affected pages and a new entry in `11-release-notes.md`. It also raises the version in `web/package.json` and `web/package-lock.json` (patch for fixes, minor for features). The version is shown in the guide and used as the image tag.
 
 ## Order of work
 
@@ -48,7 +51,8 @@ All documents and code are on `main`.
 | 7. Devon merges PR #2 and installs on the VM | Complete |
 | 8. Devon tests with TEST-PLAN.md | In progress |
 | 9. Fix the bug list, one branch per fix or group of fixes | In progress. PR #4 merged. Bug 3 direction agreed. Bug 1 waits on Devon. |
-| 10. Google sign-in, pulled forward from v2 | Written on branch `google-signin`, PR #6 open for review |
+| 10. Google sign-in, pulled forward from v2 | Complete (PR #6) |
+| 11. In-app About guide | Written on branch `about-wiki`, pull request open for review |
 
 ## Pull request history
 
@@ -59,7 +63,7 @@ All documents and code are on `main`.
 | #3 | Update handoff with install state and bug list | 2026-10-31 |
 | #4 | Fix Library columns, phone search icon, banner spacing and svelte-check warnings | 2026-10-31 |
 | #5 | Update handoff | 2026-10-31 |
-| #6 | Google sign-in with allowed domains and addresses, signing PIN and recovery | Open |
+| #6 | Google sign-in with allowed domains and addresses, signing PIN and recovery | 2026-10-31 |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
@@ -302,11 +306,12 @@ Done for PR #4 (2026-10-31):
 ### Next steps
 
 1. Devon pulls the new image and runs the retest list above.
-2. Devon reviews and merges the Google sign-in pull request, then follows the Google sign-in setup and checks SGN-15 to SGN-24.
-3. Bug 3: restyle to match OpenSchem on a new branch.
-4. Bug 1: get the answer on "a much more robust pages setup".
-5. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
-6. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
+2. Devon follows docs/GOOGLE-SIGNIN-SETUP.md and checks SGN-15 to SGN-24.
+3. Devon reviews and merges the About guide pull request, then checks ADM-13 to ADM-16.
+4. Bug 3: restyle to match OpenSchem on a new branch.
+5. Bug 1: get the answer on "a much more robust pages setup".
+6. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
+7. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
 

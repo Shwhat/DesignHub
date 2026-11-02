@@ -354,6 +354,10 @@ Seed user names (`editor1`, `appr2` and so on), records and expected values are 
 | ADM-09 | Settings, Home layout: turn a section off and move another | Home updates | Should |
 | ADM-10 | Set time zone to a different zone | Displayed times shift accordingly | Should |
 | ADM-12 | Signed in as `editor1`, open Home | Sections listed in SCREENS.md section 3.1 show seed data: TSK-0001, TSK-0002, mention notification | Must |
+| ADM-13 | Signed in as `viewer1`, open About from the sidebar, then About DesignHub from the profile menu | About guide opens on Overview with the installed version shown | Must |
+| ADM-14 | In the About guide, open each page from the page list and follow a link inside a page | Every page opens; links go to the named guide page | Should |
+| ADM-15 | Open About on a phone and choose a page from the page picker | The chosen page opens | Should |
+| ADM-16 | Sign out and open `/about` | Sign-in screen; after signing in, the About guide opens | Must |
 
 ### 7.13 Security (SEC)
 

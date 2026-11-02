@@ -116,6 +116,7 @@
   {/if}
   <a class="nav-item" class:active={active('/search')} href="/search" onclick={close}>Search</a>
   <a class="nav-item" class:active={active('/notifications')} href="/notifications" onclick={close}>Notifications {#if session.unread}<span class="badge-count">{session.unread}</span>{/if}</a>
+  <a class="nav-item" class:active={active('/about')} href="/about" onclick={close}>About</a>
 
   <div class="nav-section">Space</div>
   {#if spaces.length}

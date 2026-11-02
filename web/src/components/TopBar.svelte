@@ -137,6 +137,7 @@
         <a href="/settings/profile" onclick={() => (profileOpen = false)}>My profile</a>
         <a href="/settings/appearance" onclick={() => (profileOpen = false)}>Settings</a>
         {#if isAdmin}<a href="/admin" onclick={() => (profileOpen = false)}>Admin</a>{/if}
+        <a href="/about" onclick={() => (profileOpen = false)}>About DesignHub</a>
         <hr />
         <button onclick={signOut}>Sign out</button>
       </div>

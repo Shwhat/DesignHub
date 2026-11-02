@@ -22,6 +22,7 @@
   import Notifications from './pages/Notifications.svelte';
   import Settings from './pages/Settings.svelte';
   import Admin from './pages/admin/Admin.svelte';
+  import About from './pages/About.svelte';
   import NotFound from './pages/NotFound.svelte';
 
   loadSession();
@@ -53,6 +54,8 @@
     { pattern: '/admin', component: Admin },
     { pattern: '/admin/:section', component: Admin },
     { pattern: '/admin/:section/:id', component: Admin },
+    { pattern: '/about', component: About },
+    { pattern: '/about/:page', component: About },
   ];
 
   const current = $derived.by(() => {
