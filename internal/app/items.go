@@ -20,19 +20,19 @@ import (
 // Library listing
 
 type libraryRow struct {
-	ID        string    `json:"id"`
-	Kind      string    `json:"kind"`
-	PartKind  string    `json:"partKind,omitempty"`
-	Title     string    `json:"title"`
-	Revision  string    `json:"revision"`
-	Status    string    `json:"status"`
-	Owner     string    `json:"owner"`
-	Space     string    `json:"space"`
-	Labels    []string  `json:"labels"`
-	Extra     string    `json:"extra,omitempty"` // category, procedure type or document type
-	Updated   time.Time `json:"updated"`
-	Draft     string    `json:"draft,omitempty"` // revision being drafted
-	Locked    bool      `json:"locked,omitempty"`
+	ID       string    `json:"id"`
+	Kind     string    `json:"kind"`
+	PartKind string    `json:"partKind,omitempty"`
+	Title    string    `json:"title"`
+	Revision string    `json:"revision"`
+	Status   string    `json:"status"`
+	Owner    string    `json:"owner"`
+	Space    string    `json:"space"`
+	Labels   []string  `json:"labels"`
+	Extra    string    `json:"extra,omitempty"` // category, procedure type or document type
+	Updated  time.Time `json:"updated"`
+	Draft    string    `json:"draft,omitempty"` // revision being drafted
+	Locked   bool      `json:"locked,omitempty"`
 }
 
 func (a *App) apiLibrary(w http.ResponseWriter, r *http.Request) error {
@@ -94,7 +94,7 @@ func (a *App) apiLibrary(w http.ResponseWriter, r *http.Request) error {
 		if !it.IsEngineering() || (kind != "" && kindOf(it) != kind) {
 			continue
 		}
-		if !visible(u, kindOf(it), it.Space, locks[it.ID]) {
+		if !visible(u, it.ID, kindOf(it), it.Space, locks[it.ID]) {
 			continue
 		}
 		st := status[it.ID]
@@ -125,7 +125,7 @@ func (a *App) apiLibrary(w http.ResponseWriter, r *http.Request) error {
 		rows.Close()
 		for _, s := range sups {
 			e := cache.get(s.id)
-			if e == nil || (kind != "" && kindOf(e.Item) != kind) || !visible(u, kindOf(e.Item), e.Item.Space, locks[s.id]) {
+			if e == nil || (kind != "" && kindOf(e.Item) != kind) || !visible(u, s.id, kindOf(e.Item), e.Item.Space, locks[s.id]) {
 				continue
 			}
 			old, err := a.itemAtRevision(ctx, s.id, s.rev)
@@ -396,23 +396,26 @@ type itemPerms struct {
 }
 
 type itemView struct {
-	Item       *model.Item   `json:"item"`
-	Hash       string        `json:"hash"`
-	Showing    string        `json:"showing"` // current, draft, co, revision
-	Status     string        `json:"status"`
-	Current    *model.Item   `json:"current,omitempty"`
-	Draft      *model.Item   `json:"draft,omitempty"`
-	DraftHash  string        `json:"draftHash,omitempty"`
-	CO         *coRef        `json:"co,omitempty"`
-	Revisions  []revRow      `json:"revisions"`
-	Perms      itemPerms     `json:"perms"`
-	Lock       []userRef     `json:"lock"`
-	Watching   bool          `json:"watching"`
-	WorkCount  int           `json:"workCount"`
-	Issues     []model.Issue `json:"issues"`
-	Expected   []string      `json:"expectedFiles"`
-	Kind       string        `json:"kind"`
-	ReplacedBy []string      `json:"replacedBy,omitempty"`
+	Item         *model.Item   `json:"item"`
+	Hash         string        `json:"hash"`
+	Showing      string        `json:"showing"` // current, draft, co, revision
+	Status       string        `json:"status"`
+	Current      *model.Item   `json:"current,omitempty"`
+	Draft        *model.Item   `json:"draft,omitempty"`
+	DraftHash    string        `json:"draftHash,omitempty"`
+	CO           *coRef        `json:"co,omitempty"`
+	Revisions    []revRow      `json:"revisions"`
+	Perms        itemPerms     `json:"perms"`
+	Lock         []userRef     `json:"lock"`
+	Watching     bool          `json:"watching"`
+	WorkCount    int           `json:"workCount"`
+	Issues       []model.Issue `json:"issues"`
+	Expected     []string      `json:"expectedFiles"`
+	Kind         string        `json:"kind"`
+	ReplacedBy   []string      `json:"replacedBy,omitempty"`
+	Suppliers    []supplierRef `json:"suppliers"`
+	SupplierDocs []supplierDoc `json:"supplierDocs"`
+	Vendor       bool          `json:"vendor,omitempty"`
 }
 
 type userRef struct {
@@ -557,7 +560,48 @@ func (a *App) itemView(ctx context.Context, u *User, e *entry, rev, show string)
 		}
 	}
 	v.Perms = a.itemPerms(u, e, v.CO)
+	if v.Suppliers, err = a.suppliersOf(ctx, id); err != nil {
+		return nil, err
+	}
+	if v.SupplierDocs, err = a.supplierDocs(ctx, u, id); err != nil {
+		return nil, err
+	}
+	if u.IsContractor() {
+		v.Draft, v.DraftHash, v.CO = nil, "", nil
+		v.Perms = itemPerms{EditBlocked: "Read only."}
+	}
+	if u.IsVendor() {
+		// Vendors see released revisions only, and only the files they may download.
+		v.Vendor = true
+		v.Item, v.Current = vendorItem(v.Item), nil
+		v.Draft, v.DraftHash, v.CO, v.Lock, v.Issues, v.WorkCount, v.Expected = nil, "", nil, []userRef{}, []model.Issue{}, 0, nil
+		var rel []revRow
+		for _, rr := range v.Revisions {
+			if rr.Status == model.StatusReleased {
+				rel = append(rel, rr)
+			}
+		}
+		v.Revisions = nz2(rel)
+		v.Perms = itemPerms{EditBlocked: "Read only."}
+		var mine []supplierRef
+		for _, s := range v.Suppliers {
+			if s.ID == u.Company {
+				mine = append(mine, s)
+			}
+		}
+		v.Suppliers = mine
+		if v.Showing != "current" && v.Showing != "revision" {
+			return nil, errNotFound
+		}
+	}
 	return v, nil
+}
+
+func nz2(r []revRow) []revRow {
+	if r == nil {
+		return []revRow{}
+	}
+	return r
 }
 
 // draftPath returns where the working draft of an item lives: the current

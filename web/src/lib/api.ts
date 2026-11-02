@@ -15,6 +15,10 @@ export class ApiError extends Error {
 let csrf = '';
 let onSignedOut: () => void = () => {};
 
+export function csrfToken() {
+  return csrf;
+}
+
 export function setCsrf(token: string) {
   csrf = token;
 }

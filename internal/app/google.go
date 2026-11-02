@@ -483,6 +483,9 @@ func (a *App) apiGoogleCallback(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
+	if a.accountExpired(ctx, id) {
+		return signInError(w, r, "account_expired")
+	}
 	if _, err := a.startSession(ctx, w, r, id, st.keep); err != nil {
 		return err
 	}

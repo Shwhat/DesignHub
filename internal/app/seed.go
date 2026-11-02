@@ -17,7 +17,7 @@ import (
 // to run when engineering data already exists.
 func (a *App) LoadSeed(ctx context.Context, password string) error {
 	var n int
-	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM identifiers WHERE kind NOT IN ('space', 'page')`).Scan(&n); err != nil {
+	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM identifiers WHERE kind NOT IN ('space', 'page', 'template')`).Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
@@ -313,7 +313,7 @@ func (s *seeder) run(pw string) (err error) {
 		Fields: map[string]any{"source": pg3}})
 	work("contrib1", workInput{Type: "ncr", Space: "SP-0001", Title: strPtr("Contactor coil damaged"), AssigneeID: &c1ID,
 		Description: strPtr("Two contactors arrived with cracked coil housings."),
-		Fields: map[string]any{"found_on": "100003-201", "quantity": 2.0, "where_found": "Receiving inspection", "manufacturer": "SIE", "severity": "Major", "requires_design_change": false}})
+		Fields:      map[string]any{"found_on": "100003-201", "quantity": 2.0, "where_found": "Receiving inspection", "manufacturer": "SIE", "severity": "Major", "requires_design_change": false}})
 	ncr2 := work("editor1", workInput{Type: "ncr", Space: "SP-0001", Title: strPtr("Back plate holes misaligned"), AssigneeID: &ed1ID,
 		Description: strPtr("Mounting holes are 3 mm off the DIN rail spacing."),
 		Fields: map[string]any{"found_on": "100002-001", "quantity": 1.0, "where_found": "In process", "severity": "Major", "requires_design_change": true,
@@ -330,6 +330,11 @@ func (s *seeder) run(pw string) (err error) {
 	var cid string
 	s.check(a.DB.QueryRow(ctx, `INSERT INTO comments (record_id, author_id, body) VALUES ($1, $2, $3) RETURNING id::text`,
 		pg2, s.user("editor2").ID, "@editor1 please check the enclosure size before ordering.").Scan(&cid))
+
+	// Version 2 additions
+	if err := s.seedV2(pw); err != nil {
+		return err
+	}
 
 	// Notifications at load (Appendix A.10)
 	a.DB.Exec(ctx, `DELETE FROM notifications`)

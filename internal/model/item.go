@@ -100,20 +100,20 @@ type Item struct {
 	LeadTimeDays int      `yaml:"lead_time_days,omitempty" json:"leadTimeDays,omitempty"`
 
 	// Requirement
-	Statement     string   `yaml:"statement,omitempty" json:"statement,omitempty"`
-	Rationale     string   `yaml:"rationale,omitempty" json:"rationale,omitempty"`
-	Category      string   `yaml:"category,omitempty" json:"category,omitempty"`
-	Source        string   `yaml:"source,omitempty" json:"source,omitempty"`
-	Verification  []string `yaml:"verification,omitempty" json:"verification,omitempty"`
-	Priority      string   `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Statement    string   `yaml:"statement,omitempty" json:"statement,omitempty"`
+	Rationale    string   `yaml:"rationale,omitempty" json:"rationale,omitempty"`
+	Category     string   `yaml:"category,omitempty" json:"category,omitempty"`
+	Source       string   `yaml:"source,omitempty" json:"source,omitempty"`
+	Verification []string `yaml:"verification,omitempty" json:"verification,omitempty"`
+	Priority     string   `yaml:"priority,omitempty" json:"priority,omitempty"`
 
 	// Procedure
-	ProcedureType string `yaml:"procedure_type,omitempty" json:"procedureType,omitempty"`
-	Purpose       string `yaml:"purpose,omitempty" json:"purpose,omitempty"`
+	ProcedureType string   `yaml:"procedure_type,omitempty" json:"procedureType,omitempty"`
+	Purpose       string   `yaml:"purpose,omitempty" json:"purpose,omitempty"`
 	Tools         []string `yaml:"tools,omitempty" json:"tools,omitempty"`
-	Safety        string `yaml:"safety,omitempty" json:"safety,omitempty"`
-	DurationMin   int    `yaml:"duration_min,omitempty" json:"durationMin,omitempty"`
-	Steps         []Step `yaml:"steps,omitempty" json:"steps,omitempty"`
+	Safety        string   `yaml:"safety,omitempty" json:"safety,omitempty"`
+	DurationMin   int      `yaml:"duration_min,omitempty" json:"durationMin,omitempty"`
+	Steps         []Step   `yaml:"steps,omitempty" json:"steps,omitempty"`
 
 	// Document
 	DocumentType string `yaml:"document_type,omitempty" json:"documentType,omitempty"`
@@ -124,6 +124,7 @@ type Item struct {
 	Parent       string `yaml:"parent,omitempty" json:"parent,omitempty"`
 	Sort         int    `yaml:"sort,omitempty" json:"sort,omitempty"`
 	PageType     string `yaml:"page_type,omitempty" json:"pageType,omitempty"`
+	Template     string `yaml:"template,omitempty" json:"template,omitempty"`
 	Controlled   string `yaml:"controlled,omitempty" json:"controlled,omitempty"` // default, yes, no
 	ReleasedOnly bool   `yaml:"released_only,omitempty" json:"releasedOnly,omitempty"`
 

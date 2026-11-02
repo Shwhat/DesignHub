@@ -14,7 +14,10 @@
   import LockDialog from '../components/LockDialog.svelte';
   import DiffView from '../components/DiffView.svelte';
   import UserPicker from '../components/UserPicker.svelte';
-  import { onDestroy, untrack } from 'svelte';
+  import { onDestroy, untrack, mount, unmount, tick } from 'svelte';
+  import PdfDialog from '../components/PdfDialog.svelte';
+  import { pdfHTML } from '../lib/exporting';
+  import { inline } from '../lib/inline.svelte';
 
   let { params }: { params: any; pattern?: string } = $props();
   const id = untrack(() => params.id);
@@ -36,6 +39,122 @@
   let draftCOs: any[] = $state([]);
   let conflict: any = $state(null);
   let savedDraft: any = $state(null);
+  let pdfOpen = $state(false);
+  let article: HTMLElement | undefined = $state();
+  let selBtn: { x: number; y: number } | null = $state(null);
+  let anchors: any[] = $state([]);
+
+  // Inline comments: highlight the quoted text of open inline comments.
+  async function loadAnchors() {
+    try { anchors = (await get(`/api/records/${id}/comments`)).filter((c: any) => c.anchor && !c.resolved && !c.replyTo); } catch { anchors = []; }
+    await tick();
+    setTimeout(highlight, 300);
+  }
+  $effect(() => { inline.version; if (v && !editing) loadAnchors(); });
+  function textNodes(root: Node) {
+    const out: Text[] = [];
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => ((n.parentElement?.closest('[data-block]')) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+    while (w.nextNode()) out.push(w.currentNode as Text);
+    return out;
+  }
+  function highlight() {
+    if (!article) return;
+    article.querySelectorAll('mark.ic').forEach((m) => m.replaceWith(...Array.from(m.childNodes)));
+    article.normalize();
+    inline.text = article.innerText;
+    for (const c of anchors) {
+      const nodes = textNodes(article);
+      let all = '';
+      const starts: number[] = [];
+      for (const n of nodes) { starts.push(all.length); all += n.data; }
+      let at = all.indexOf(c.anchor.prefix + c.anchor.quote);
+      at = at >= 0 ? at + c.anchor.prefix.length : all.indexOf(c.anchor.quote);
+      if (at < 0) continue;
+      const end = at + c.anchor.quote.length;
+      nodes.forEach((n, i) => {
+        const s0 = starts[i], s1 = s0 + n.data.length;
+        if (s1 <= at || s0 >= end) return;
+        const r = document.createRange();
+        r.setStart(n, Math.max(0, at - s0));
+        r.setEnd(n, Math.min(n.data.length, end - s0));
+        const m = document.createElement('mark');
+        m.className = 'ic';
+        m.dataset.cid = c.id;
+        m.title = c.author + ': ' + c.body.slice(0, 120);
+        try { r.surroundContents(m); } catch {}
+      });
+    }
+  }
+  function onSelect() {
+    if (editing || !v?.pagePerms.comment || !article) { selBtn = null; return; }
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) { selBtn = null; return; }
+    const r = sel.getRangeAt(0);
+    if (!article.contains(r.commonAncestorContainer)) { selBtn = null; return; }
+    const rect = r.getBoundingClientRect();
+    selBtn = { x: rect.right, y: rect.top };
+  }
+  function commentOnSelection() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !article) return;
+    const quote = sel.toString().trim();
+    if (!quote) return;
+    const r = sel.getRangeAt(0);
+    const pre = document.createRange();
+    pre.setStart(article, 0);
+    pre.setEnd(r.startContainer, r.startOffset);
+    const post = document.createRange();
+    post.setStart(r.endContainer, r.endOffset);
+    post.setEnd(article, article.childNodes.length);
+    inline.pending = { quote: quote.slice(0, 2000), prefix: pre.toString().slice(-80), suffix: post.toString().slice(0, 80) };
+    session.commentsOpen = true;
+    selBtn = null;
+    sel.removeAllRanges();
+  }
+  function clickMark(e: MouseEvent) {
+    const m = (e.target as HTMLElement).closest('mark.ic') as HTMLElement | null;
+    if (m) { inline.focus = m.dataset.cid || ''; session.commentsOpen = true; }
+  }
+
+  // PDF: this page, optionally with every page below it in tree order.
+  async function buildPdf(o: Record<string, boolean>) {
+    const parts: (HTMLElement | string)[] = [];
+    const head = (p: any) => `<h1>${p.title.replace(/</g, '&lt;')}</h1><p class="muted">${p.id}${p.revision ? ' rev ' + p.revision : ''}</p>`;
+    const own = document.createElement('div');
+    own.innerHTML = head({ ...shown, id });
+    if (article) own.appendChild(article.cloneNode(true));
+    parts.push(own);
+    let pages = 1;
+    if (o.children) {
+      const tree = await get(`/api/spaces/${v.item.space}/tree`);
+      const kids = (p: string): string[] => tree.pages.filter((x: any) => x.parent === p).sort((a: any, b: any) => a.sort - b.sort).flatMap((x: any) => [x.id, ...kids(x.id)]);
+      const ids = kids(id).slice(0, 200);
+      const holder = document.createElement('div');
+      holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px';
+      document.body.appendChild(holder);
+      const mounted: any[] = [];
+      try {
+        for (const pid of ids) {
+          const pv = await get(`/api/pages/${pid}`).catch(() => null);
+          if (!pv) continue;
+          const sec = document.createElement('div');
+          sec.innerHTML = head(pv.item);
+          const body = document.createElement('div');
+          sec.appendChild(body);
+          holder.appendChild(sec);
+          mounted.push(mount(Markdown, { target: body, props: { source: pv.item.body || '' } }));
+          parts.push(sec);
+          pages++;
+        }
+        await new Promise((ok) => setTimeout(ok, 1500)); // let live blocks load
+        return { html: await pdfHTML(parts), scope: 'page tree', pages };
+      } finally {
+        mounted.forEach((m) => unmount(m));
+        holder.remove();
+      }
+    }
+    return { html: await pdfHTML(parts), scope: 'page', pages };
+  }
 
   async function load() {
     try {
@@ -47,7 +166,10 @@
   }
   load();
   const off = onEvent((e) => { if (e.type === 'record' && e.id === id && !editing) load(); });
-  onDestroy(() => { off(); setLeaveGuard(null); });
+  onDestroy(() => { off(); setLeaveGuard(null); document.removeEventListener('selectionchange', onSelChange); inline.text = ''; inline.pending = null; });
+  let selTimer: any;
+  function onSelChange() { clearTimeout(selTimer); selTimer = setTimeout(onSelect, 250); }
+  document.addEventListener('selectionchange', onSelChange);
 
   async function startEdit() {
     const main = v.perms.editTarget === 'main';
@@ -133,7 +255,8 @@
           <button onclick={() => (showHistory = !showHistory)}>{showHistory ? 'Hide history' : 'History'}</button>
           <button onclick={watch}>{v.watching ? 'Stop watching' : 'Watch'}</button>
           {#if v.pagePerms.lock}<button onclick={() => (lockOpen = true)}>Lock</button>{/if}
-          <button onclick={() => window.print()}>Print</button>
+          <button onclick={() => (pdfOpen = true)}>Export PDF...</button>
+          <button onclick={() => window.print()}>Print...</button>
           {#if v.pagePerms.delete}<hr /><button onclick={remove}>Delete page</button>{/if}
         </Menu>
       {/if}
@@ -174,7 +297,10 @@
     {#if savedDraft}<div class="banner info">You have unsaved changes from {dateTime(savedDraft.updatedAt)}. <button class="small" onclick={() => { draft = savedDraft.draft; savedDraft = null; }}>Restore them</button> <button class="small" onclick={() => { savedDraft = null; del(`/api/records/${id}/draft`).catch(() => {}); }}>Discard</button></div>{/if}
     <Editor bind:value={draft.body} recordId={id} />
   {:else}
-    <article class="card card-body">{#if shown.body}<Markdown source={shown.body} />{:else}<div class="muted">This page is empty.</div>{/if}</article>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <article class="card card-body" bind:this={article} onmouseup={onSelect} onclick={clickMark}>{#if shown.body}<Markdown source={shown.body} />{:else}<div class="muted">This page is empty.</div>{/if}</article>
+    {#if selBtn}<button class="small primary selbtn" style="left: {selBtn.x}px; top: {selBtn.y - 32}px" onmousedown={(e) => e.preventDefault()} onclick={commentOnSelection}>Comment</button>{/if}
   {/if}
 
   {#if v.children.length && !editing}
@@ -185,6 +311,7 @@
 </div>
 
 {#if session.commentsOpen}<Comments recordId={id} canComment={v.pagePerms.comment} />{/if}
+{#if pdfOpen}<PdfDialog id={id} options={v.children.length ? [{ key: 'children', label: 'Include the pages below this page' }] : []} build={buildPdf} onclose={() => (pdfOpen = false)} />{/if}
 {#if lockOpen}<LockDialog recordId={id} current={v.lock} onclose={() => (lockOpen = false)} ondone={() => { lockOpen = false; load(); }} />{/if}
 {#if coOpen}
   <Modal title="Edit under change order" onclose={() => (coOpen = false)}>
@@ -202,3 +329,9 @@
   </Modal>
 {/if}
 {/if}
+
+<style>
+  :global(mark.ic) { background: transparent; border-bottom: 2px solid #e0a100; cursor: pointer; padding: 0; }
+  :global(mark.ic:hover) { background: var(--warn-soft); }
+  .selbtn { position: fixed; z-index: 70; box-shadow: var(--shadow-pop); }
+</style>

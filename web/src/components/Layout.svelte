@@ -3,6 +3,8 @@
   import TopBar from './TopBar.svelte';
   import Sidebar from './Sidebar.svelte';
   import { session } from '../lib/state.svelte';
+  import { date } from '../lib/format';
+  const daysLeft = $derived(session.me?.expiresOn ? Math.ceil((new Date(session.me.expiresOn).getTime() - Date.now()) / 86400000) : null);
   let { children }: { children: Snippet } = $props();
 </script>
 
@@ -15,6 +17,7 @@
     <div class="backdrop phone-backdrop" onclick={() => (session.sidebarOpen = false)}></div>
   {/if}
   <main class="main" class:with-comments={session.commentsOpen}>
+    {#if daysLeft !== null && daysLeft <= 14}<div class="banner warn" style="max-width: 1280px; margin: 0 auto 12px">Your access ends on {date(session.me?.expiresOn)}.</div>{/if}
     {@render children()}
   </main>
 </div>

@@ -15,6 +15,21 @@
   import Modal from '../components/Modal.svelte';
   import CoHistory from '../components/CoHistory.svelte';
   import { onDestroy, untrack } from 'svelte';
+  import PdfDialog from '../components/PdfDialog.svelte';
+  import { pdfHTML } from '../lib/exporting';
+  let pdfOpen = $state(false);
+  const esc = (x: any) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
+  async function buildPdf() {
+    const co = d.co;
+    const row = (k: string, v: any) => `<dt>${k}</dt><dd style="white-space:pre-wrap">${esc(v) || '-'}</dd>`;
+    const items = d.items.map((it: any) => `<tr><td>${it.hidden ? 'Restricted item' : esc(it.item)}</td><td>${esc(it.title)}</td><td>${esc(it.action)}</td><td>${esc(it.fromRev)}</td><td>${esc(it.toRev)}</td></tr>`).join('');
+    const appr = d.approvers.map((a: any) => `<tr><td>${esc(a.name)}</td><td>${esc(a.decision || 'Pending')}</td><td>${esc(a.decidedAt ? dateTime(a.decidedAt) : '')}</td><td>${a.decision ? 'Electronic signature: ' + (a.decision === 'Approved' ? 'approval of this change' : 'rejection of this change') : ''}</td><td>${esc(a.comment)}</td></tr>`).join('');
+    const html = `<h1>${esc(co.title)}</h1><p class="muted">${esc(id)} &middot; ${esc(co.state)} &middot; ${esc(co.changeType)}</p>
+      <dl class="props">${row('Owner', co.owner)}${row('Priority', co.priority)}${row('Need date', co.needDate)}${row('Home space', spaceName(co.space))}${row('Reason for change', co.reason)}${row('Description of change', co.description)}${row('Existing stock disposition', co.stockDisposition)}${co.releasedAt ? row('Released', co.releasedBy + ', ' + dateTime(co.releasedAt)) + row('Baseline', co.baseline) : ''}</dl>
+      <h2>Affected items</h2><table class="data"><thead><tr><th>Item</th><th>Title</th><th>Action</th><th>From</th><th>To</th></tr></thead><tbody>${items}</tbody></table>
+      <h2>Approvals and signatures</h2><table class="data"><thead><tr><th>Approver</th><th>Decision</th><th>Time</th><th>Meaning</th><th>Comment</th></tr></thead><tbody>${appr || '<tr><td colspan=5>No approvers.</td></tr>'}</tbody></table>`;
+    return { html: await pdfHTML([html]), scope: 'change order' };
+  }
 
   let { params }: { params: any; pattern?: string } = $props();
   const id = untrack(() => params.id);
@@ -101,6 +116,7 @@
         {#if d.perms.edit}<button onclick={startEdit}>Edit</button>{/if}
         {#if d.perms.manageApprovers}<button onclick={openApprovers}>Add or remove approvers</button>{/if}
         {#if d.perms.withdraw}<button onclick={() => act('withdraw', 'Returned to Draft.')}>Return to Draft</button>{/if}
+        <button onclick={() => (pdfOpen = true)}>Export PDF...</button>
         <button onclick={watch}>{d.watching ? 'Stop watching' : 'Watch'}</button>
         {#if d.perms.lock}<button onclick={() => (lockOpen = true)}>Lock</button>{/if}
         {#if d.perms.cancel}<hr /><button onclick={() => confirm(`Cancel ${id}?`) && act('cancel', 'Cancelled.')}>Cancel change order</button>{/if}
@@ -201,6 +217,7 @@
 {/if}
 {#if sign}<SignatureDialog title={sign === 'Release' ? `Release ${id}` : sign === 'Approved' ? `Approve ${id}` : `Reject ${id}`} decision={sign} requireComment={sign === 'Rejected'} onsign={decide} onclose={() => (sign = '')} />{/if}
 {#if session.commentsOpen}<Comments recordId={id} />{/if}
+{#if pdfOpen}<PdfDialog id={id} build={buildPdf} onclose={() => (pdfOpen = false)} />{/if}
 {#if lockOpen}<LockDialog recordId={id} current={d.lock} onclose={() => (lockOpen = false)} ondone={() => { lockOpen = false; load(); }} />{/if}
 {#if approverDialog}
   <Modal title="Approvers" onclose={() => (approverDialog = false)}>

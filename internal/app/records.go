@@ -220,16 +220,27 @@ func (a *App) apiResolve(w http.ResponseWriter, r *http.Request) error {
 // Comments
 
 type commentRow struct {
-	ID        string     `json:"id"`
-	Revision  string     `json:"revision"`
-	AuthorID  string     `json:"authorId"`
-	Author    string     `json:"author"`
-	Body      string     `json:"body"`
-	ReplyTo   *string    `json:"replyTo"`
-	CreatedAt time.Time  `json:"createdAt"`
-	EditedAt  *time.Time `json:"editedAt"`
-	Resolved  bool       `json:"resolved"`
-	Hidden    bool       `json:"hidden"`
+	ID        string         `json:"id"`
+	Revision  string         `json:"revision"`
+	AuthorID  string         `json:"authorId"`
+	Author    string         `json:"author"`
+	Body      string         `json:"body"`
+	ReplyTo   *string        `json:"replyTo"`
+	CreatedAt time.Time      `json:"createdAt"`
+	EditedAt  *time.Time     `json:"editedAt"`
+	Resolved  bool           `json:"resolved"`
+	Hidden    bool           `json:"hidden"`
+	Internal  bool           `json:"internal"`
+	Anchor    *commentAnchor `json:"anchor"`
+}
+
+// commentAnchor ties an inline comment to quoted text (DATA-MODEL.md 7.15).
+type commentAnchor struct {
+	Quote   string `json:"quote"`
+	Prefix  string `json:"prefix"`
+	Suffix  string `json:"suffix"`
+	Field   string `json:"field,omitempty"` // long text field of a record; empty for a page body
+	Version string `json:"version,omitempty"`
 }
 
 func (a *App) apiComments(w http.ResponseWriter, r *http.Request) error {
@@ -239,8 +250,8 @@ func (a *App) apiComments(w http.ResponseWriter, r *http.Request) error {
 	if !a.canSee(ctx, u, id) {
 		return errNotFound
 	}
-	rows, err := a.DB.Query(ctx, `SELECT c.id::text, c.revision, c.author_id::text, us.display_name, c.body, c.reply_to::text, c.created_at, c.edited_at, c.resolved, c.hidden
-		FROM comments c JOIN users us ON us.id = c.author_id WHERE c.record_id = $1 ORDER BY c.created_at`, id)
+	rows, err := a.DB.Query(ctx, `SELECT c.id::text, c.revision, c.author_id::text, us.display_name, c.body, c.reply_to::text, c.created_at, c.edited_at, c.resolved, c.hidden,
+		c.internal, c.anchor FROM comments c JOIN users us ON us.id = c.author_id WHERE c.record_id = $1 ORDER BY c.created_at`, id)
 	if err != nil {
 		return err
 	}
@@ -248,8 +259,16 @@ func (a *App) apiComments(w http.ResponseWriter, r *http.Request) error {
 	out := []commentRow{}
 	for rows.Next() {
 		var c commentRow
-		if err := rows.Scan(&c.ID, &c.Revision, &c.AuthorID, &c.Author, &c.Body, &c.ReplyTo, &c.CreatedAt, &c.EditedAt, &c.Resolved, &c.Hidden); err != nil {
+		var anchor []byte
+		if err := rows.Scan(&c.ID, &c.Revision, &c.AuthorID, &c.Author, &c.Body, &c.ReplyTo, &c.CreatedAt, &c.EditedAt, &c.Resolved, &c.Hidden, &c.Internal, &anchor); err != nil {
 			return err
+		}
+		if c.Internal && u.IsVendor() {
+			continue
+		}
+		if len(anchor) > 0 {
+			c.Anchor = &commentAnchor{}
+			json.Unmarshal(anchor, c.Anchor)
 		}
 		if c.Hidden {
 			c.Body = ""
@@ -267,8 +286,10 @@ func (a *App) apiAddComment(w http.ResponseWriter, r *http.Request) error {
 		return errNotFound
 	}
 	var in struct {
-		Body    string `json:"body"`
-		ReplyTo string `json:"replyTo"`
+		Body     string         `json:"body"`
+		ReplyTo  string         `json:"replyTo"`
+		Internal bool           `json:"internal"`
+		Anchor   *commentAnchor `json:"anchor"`
 	}
 	if err := decode(r, &in); err != nil {
 		return err
@@ -276,6 +297,19 @@ func (a *App) apiAddComment(w http.ResponseWriter, r *http.Request) error {
 	body := strings.TrimSpace(in.Body)
 	if body == "" || len(body) > 20000 {
 		return badRequest("Comment text is required.")
+	}
+	if in.Internal && u.IsVendor() {
+		return errForbidden
+	}
+	var anchor any
+	if in.Anchor != nil {
+		in.Anchor.Quote = strings.TrimSpace(in.Anchor.Quote)
+		if in.Anchor.Quote == "" || len(in.Anchor.Quote) > 2000 || in.ReplyTo != "" {
+			return badRequest("Select some text to comment on.")
+		}
+		in.Anchor.Prefix, in.Anchor.Suffix = truncate(in.Anchor.Prefix, 80), truncate(in.Anchor.Suffix, 80)
+		b, _ := json.Marshal(in.Anchor)
+		anchor = b
 	}
 	var reply any
 	if in.ReplyTo != "" {
@@ -299,8 +333,27 @@ func (a *App) apiAddComment(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	var cid string
-	if err := a.DB.QueryRow(ctx, `INSERT INTO comments (record_id, revision, author_id, body, reply_to) VALUES ($1, $2, $3, $4, $5) RETURNING id::text`,
-		id, rev, u.ID, body, reply).Scan(&cid); err != nil {
+	internal := in.Internal
+	if reply != nil {
+		// Replies to an internal comment stay internal.
+		var parentInternal bool
+		a.DB.QueryRow(ctx, `SELECT internal FROM comments WHERE id = $1`, reply).Scan(&parentInternal)
+		if parentInternal {
+			if u.IsVendor() {
+				return errNotFound
+			}
+			internal = true
+		}
+	}
+	if anchor != nil && in.Anchor.Version == "" {
+		if e := cache.get(id); e != nil {
+			in.Anchor.Version = e.Hash
+			b, _ := json.Marshal(in.Anchor)
+			anchor = b
+		}
+	}
+	if err := a.DB.QueryRow(ctx, `INSERT INTO comments (record_id, revision, author_id, body, reply_to, internal, anchor) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text`,
+		id, rev, u.ID, body, reply, internal, anchor).Scan(&cid); err != nil {
 		return err
 	}
 	a.notifyMentions(ctx, u, id, title, body)
@@ -320,13 +373,26 @@ func (a *App) apiUpdateComment(w http.ResponseWriter, r *http.Request) error {
 		Body     *string `json:"body"`
 		Resolved *bool   `json:"resolved"`
 		Hidden   *bool   `json:"hidden"`
+		Internal *bool   `json:"internal"`
 	}
 	if err := decode(r, &in); err != nil {
 		return err
 	}
 	var authorID, body string
-	if err := a.DB.QueryRow(ctx, `SELECT author_id::text, body FROM comments WHERE id = $1 AND record_id = $2`, cid, id).Scan(&authorID, &body); err != nil {
-		return err
+	var isInternal bool
+	if err := a.DB.QueryRow(ctx, `SELECT author_id::text, body, internal FROM comments WHERE id = $1 AND record_id = $2`, cid, id).Scan(&authorID, &body, &isInternal); err != nil {
+		return errNotFound
+	}
+	if isInternal && u.IsVendor() {
+		return errNotFound
+	}
+	if in.Internal != nil {
+		if u.IsVendor() || (authorID != u.ID && !u.Can(PermUsers)) {
+			return errForbidden
+		}
+		if _, err := a.DB.Exec(ctx, `UPDATE comments SET internal = $2 WHERE id = $1 OR reply_to = $1`, cid, *in.Internal); err != nil {
+			return err
+		}
 	}
 	isAuthor := authorID == u.ID
 	if in.Body != nil {
@@ -405,7 +471,11 @@ func (a *App) apiDownload(w http.ResponseWriter, r *http.Request) error {
 	if !a.canSee(ctx, u, id) {
 		return errNotFound
 	}
-	if !a.recordHasFile(ctx, id, sum) {
+	if u.IsVendor() {
+		if !a.vendorHasFile(ctx, u, id, sum) {
+			return errNotFound
+		}
+	} else if !a.recordHasFile(ctx, id, sum) {
 		return errNotFound
 	}
 	f, err := a.Files.Open(sum)
@@ -431,7 +501,36 @@ func (a *App) apiDownload(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// vendorHasFile limits Vendors to the released files they may download,
+// supplier documents of their company, and files on their NCRs.
+func (a *App) vendorHasFile(ctx context.Context, u *User, id, sum string) bool {
+	var n int
+	a.DB.QueryRow(ctx, `SELECT count(*) FROM supplier_documents WHERE record_id = $1 AND sha256 = $2 AND company_id = $3`, id, sum, u.Company).Scan(&n)
+	if n > 0 {
+		return true
+	}
+	if e := cache.get(id); e != nil {
+		for _, f := range vendorItem(e.Item).Files {
+			if f.SHA256 == sum {
+				return true
+			}
+		}
+		return false
+	}
+	a.DB.QueryRow(ctx, `SELECT count(*) FROM work_items WHERE id = $1 AND attachments::text LIKE '%' || $2 || '%'`, id, sum).Scan(&n)
+	return n > 0
+}
+
 func (a *App) recordHasFile(ctx context.Context, id, sum string) bool {
+	var sd int
+	a.DB.QueryRow(ctx, `SELECT count(*) FROM supplier_documents WHERE record_id = $1 AND sha256 = $2`, id, sum).Scan(&sd)
+	if sd > 0 {
+		return true
+	}
+	if strings.HasPrefix(id, "COMP-") {
+		a.DB.QueryRow(ctx, `SELECT count(*) FROM companies WHERE id = $1 AND attachments::text LIKE '%' || $2 || '%'`, id, sum).Scan(&sd)
+		return sd > 0
+	}
 	has := func(it *model.Item) bool {
 		if it == nil {
 			return false

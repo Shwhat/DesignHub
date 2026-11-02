@@ -155,3 +155,61 @@ func (a *App) apiPageEditUnderCO(w http.ResponseWriter, r *http.Request) error {
 	}
 	return ok(w, map[string]string{"co": coID})
 }
+
+// routesV2 adds the version 2 endpoints.
+func (a *App) routesV2(api func(string, handlerFunc)) {
+	// Companies and suppliers
+	api("GET /api/companies", a.apiCompanies)
+	api("POST /api/companies", a.apiCreateCompany)
+	api("GET /api/companies/{id}", a.apiCompany)
+	api("PATCH /api/companies/{id}", a.apiUpdateCompany)
+	api("POST /api/companies/{id}/supplied", a.apiSupplied)
+	api("PUT /api/items/{id}/suppliers", a.apiItemSuppliers)
+	api("GET /api/records/{id}/supplier-docs", a.apiSupplierDocs)
+	api("POST /api/records/{id}/supplier-docs", a.apiAddSupplierDoc)
+	api("PUT /api/work/{id}/supplier-response", a.apiSupplierResponse)
+
+	// Roles and workflows
+	api("POST /api/roles/{id}/copy", a.apiCopyRole)
+	api("DELETE /api/roles/{id}", a.apiDeleteRole)
+	api("GET /api/workflows", a.apiWorkflows)
+	api("PUT /api/workflows/{type}", a.apiPutWorkflow)
+	api("GET /api/workflows/{type}/history", a.apiWorkflowHistory)
+
+	// Planning and time
+	api("GET /api/spaces/{id}/sprints", a.apiSprints)
+	api("GET /api/spaces/{id}/milestones", a.apiMilestones)
+	api("GET /api/spaces/{id}/timeline", a.apiTimeline)
+	api("GET /api/spaces/{id}/time-report", a.apiTimeReport)
+	api("POST /api/sprints", a.apiCreateSprint)
+	api("GET /api/sprints/{id}", a.apiSprint)
+	api("PATCH /api/sprints/{id}", a.apiUpdateSprint)
+	api("POST /api/sprints/{id}/start", a.apiStartSprint)
+	api("POST /api/sprints/{id}/close", a.apiCloseSprint)
+	api("POST /api/plan", a.apiPlanItems)
+	api("POST /api/milestones", a.apiCreateMilestone)
+	api("GET /api/milestones/{id}", a.apiMilestone)
+	api("PATCH /api/milestones/{id}", a.apiUpdateMilestone)
+	api("GET /api/work/{id}/time", a.apiTimeEntries)
+	api("POST /api/time", a.apiLogTime)
+	api("PATCH /api/time/{id}", a.apiUpdateTime)
+	api("DELETE /api/time/{id}", a.apiDeleteTime)
+	api("GET /api/me/time", a.apiMyTime)
+
+	// Templates
+	api("GET /api/templates", a.apiTemplates)
+	api("POST /api/templates", a.apiCreateTemplate)
+	api("GET /api/templates/{id}", a.apiTemplate)
+	api("PATCH /api/templates/{id}", a.apiUpdateTemplate)
+
+	// CSV and PDF
+	api("POST /api/exports/log", a.apiLogExport)
+	api("GET /api/exports/{type}", a.apiFullExport)
+	api("GET /api/imports", a.apiImports)
+	api("GET /api/imports/{id}/file", a.apiImportFile)
+	api("GET /api/import-templates/{type}", a.apiImportTemplate)
+	api("GET /api/import-samples/{sha}", a.apiImportSample)
+	api("POST /api/imports/preview", a.apiImportPreview)
+	api("POST /api/imports/commit", a.apiImportCommit)
+	api("POST /api/pdf", a.apiPDF)
+}

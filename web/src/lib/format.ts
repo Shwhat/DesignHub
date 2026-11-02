@@ -54,7 +54,21 @@ export const kindLabels: Record<string, string> = {
   action: 'Action',
   epic: 'Epic',
   ncr: 'Nonconformance',
+  company: 'Company',
+  milestone: 'Milestone',
 };
+
+// hours formats a number of hours.
+export function hours(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '';
+  return (Math.round(n * 100) / 100).toString() + ' h';
+}
+
+export function addDays(d: string, n: number): string {
+  const [y, m, dd] = d.split('-').map(Number);
+  const x = new Date(y, m - 1, dd + n);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
 
 export function kindLabel(k: string) {
   return kindLabels[k] || k;

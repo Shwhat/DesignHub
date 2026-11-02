@@ -241,7 +241,7 @@ Uses the common record layout (section 1.1).
 | Planning fields (v2) | Estimate, Sprint and Milestone in Details. Time logged and Remaining shown beside Estimate. |
 | Time tab (v2) | Section 21 |
 | NCR Supplier (v2) | Supplier company picker on the Report tab. A Supplier response tab shows the request and due dates and the supplier's root cause and corrective action. "Request supplier response..." in the Actions menu sets the dates and notifies the supplier's Vendors. |
-| Status dropdown (v2) | Lists the transitions the workflow allows the user. Missing required fields open a dialog asking for them. |
+| Status dropdown (v2) | Lists the transitions the workflow allows the user. When required fields are missing, the item opens for editing with a note naming them, and saving moves it to the chosen state. |
 | Export PDF (v2) | Actions menu |
 
 ## 13. Search
@@ -361,7 +361,7 @@ Uses the common record layout (section 1.1).
 | Area | Content |
 |---|---|
 | Work item Time tab | Estimate, logged, remaining. Table of entries: date, person, hours, note. "Log time" form at the top: date (today), hours, note. |
-| Quick log | "Log time..." in the work item Actions menu and on board cards (right-click) |
+| Quick log | "Log time..." in the work item Actions menu opens the Time tab |
 | My time | Settings, Time, or the profile menu: the user's entries for a week, with totals per day and per item, and a form to add entries |
 | Time report | Work, Time report in each space: filters for date range, people, epic, sprint, milestone, type. Group by person, item, epic or sprint. Columns: estimate, logged, difference. Export CSV. |
 | Rules | Section 7.24 of DATA-MODEL.md |
@@ -405,7 +405,7 @@ Uses the common record layout (section 1.1).
 |---|---|
 | Entry | "Export PDF..." in the Actions menu of pages, engineering items, change orders, work items and NCRs |
 | Options | Pages: this page only, or with pages below it. Items: include Bill of Design, include files list. Paper: Letter or A4 (user default). |
-| Progress | The dialog shows progress and then downloads the file. Exports of more than 50 pages run in the background and notify the user when ready. |
+| Progress | The dialog shows progress and then downloads the file. A page tree export includes at most 200 pages. |
 | Layout | Section 7.28 of DATA-MODEL.md |
 | Print view | "Print..." in the same menu opens the browser print dialog with the same layout |
 
@@ -418,7 +418,7 @@ Uses the common record layout (section 1.1).
 | Type picker | Task, Issue, Action, Epic, NCR |
 | States | Ordered table: name, category, color, required fields. Drag to reorder. Add state. The NCR Disposition state shows a lock icon and cannot be removed. |
 | Transitions | Grid with From states as rows and To states as columns. Each cell is off or on; when on, a role list and the "Assignee may always move" toggle. |
-| Preview | Diagram of states and transitions, drawn from the table |
+| Preview | Each state with its category and the states it can move to |
 | Save | Shows items affected. If a removed state holds items, a mapping step asks for a new state for each. Saving raises the workflow version. |
 | History | Earlier versions with who changed them and when |
 

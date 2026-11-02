@@ -19,6 +19,11 @@
   import AddToCO from '../components/AddToCO.svelte';
   import LinksEditor from '../components/LinksEditor.svelte';
   import DiffView from '../components/DiffView.svelte';
+  import ItemSuppliers from '../components/ItemSuppliers.svelte';
+  import ImportDialog from '../components/ImportDialog.svelte';
+  import PdfDialog from '../components/PdfDialog.svelte';
+  import { pdfHTML, exportCSV } from '../lib/exporting';
+  import { isVendor } from '../lib/state.svelte';
   import { onDestroy, untrack } from 'svelte';
 
   let { params }: { params: any; pattern?: string } = $props();
@@ -38,6 +43,24 @@
   let backlinks: any[] = $state([]);
   let whereUsed: any = $state(null);
   let dirty = $state(false);
+  let pdfOpen = $state(false);
+  let bomImport = $state(false);
+  let detailsEl: HTMLElement | undefined = $state();
+  const esc = (x: any) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
+  async function buildPdf(o: Record<string, boolean>) {
+    const parts: (HTMLElement | string)[] = [];
+    if (detailsEl) parts.push(detailsEl);
+    if (o.bom && isAssembly) {
+      const b = await get(`/api/items/${encodeURIComponent(id)}/bom`);
+      const rows = (b.flat || []).map((l: any) => `<tr><td>${esc(l.id)}</td><td>${esc(l.title)}</td><td>${esc(l.revision)}</td><td class="num">${esc(qty(l.total))}</td></tr>`).join('');
+      parts.push(`<h2>Bill of Design (flat)</h2><table class="data"><thead><tr><th>Item</th><th>Name</th><th>Rev</th><th class="num">Total quantity</th></tr></thead><tbody>${rows}</tbody></table>`);
+    }
+    if (o.files) {
+      const rows = (shown.files || []).map((x: any) => `<tr><td>${esc(x.name)}</td><td>${esc(x.role)}</td><td>${esc(x.sha256.slice(0, 12))}</td></tr>`).join('');
+      parts.push(`<h2>Files</h2><table class="data"><thead><tr><th>Name</th><th>Role</th><th>Checksum</th></tr></thead><tbody>${rows || '<tr><td colspan=3>No files.</td></tr>'}</tbody></table>`);
+    }
+    return { html: await pdfHTML(parts), scope: 'item' };
+  }
 
   async function load() {
     try {
@@ -55,10 +78,12 @@
   onDestroy(() => { off(); setLeaveGuard(null); });
 
   const isAssembly = $derived(v?.kind === 'assembly');
-  const tabs = $derived([
+  const tabs = $derived((isVendor()
+    ? [['details', 'Details'], ...(isAssembly ? [['bom', 'BOM']] : []), ['files', 'Files'], ['revisions', 'Revisions']]
+    : [
     ['details', 'Details'], ...(isAssembly ? [['bom', 'BOM'], ['where', 'Where-used'], ['validation', 'Validation']] : [['where', 'Where-used']]),
     ['files', 'Files'], ['links', 'Links'], ['revisions', 'Revisions'], ['history', 'History'],
-  ] as [string, string][]);
+  ]) as [string, string][]);
   function setTab(t: string) { tab = t; setQuery({ tab: t === 'details' ? null : t }); if (t === 'where') loadWhere(); }
   async function loadWhere() { whereUsed = await get(`/api/items/${encodeURIComponent(id)}/where-used`); }
   $effect(() => { if (tab === 'where' && !whereUsed) loadWhere(); });
@@ -175,6 +200,7 @@
           <button onclick={watch}>{v.watching ? 'Stop watching' : 'Watch'}</button>
           {#if v.perms.lock}<button onclick={() => (lockOpen = true)}>Lock</button>{/if}
           {#if v.perms.convert}<button onclick={convert}>Convert to production part</button>{/if}
+          <button onclick={() => (pdfOpen = true)}>Export PDF...</button>
           {#if v.perms.delete}<hr /><button onclick={remove}>Delete draft</button>{/if}
         </Menu>
       {/if}
@@ -189,6 +215,7 @@
     <div class="banner info">You are viewing the draft of revision {shown.revision}. <a href="/items/{encodeURIComponent(id)}" onclick={(e) => { e.preventDefault(); navigate(`/items/${encodeURIComponent(id)}`, true); load(); }}>View released rev {currentRev}</a></div>
   {/if}
   {#if v.co && !viewingOld}<div class="banner info">On change order <a href="/change-orders/{v.co.id}">{v.co.id} {v.co.title}</a> ({v.co.state}, {v.co.action.toLowerCase()}).</div>{/if}
+  {#if v.suppliers?.some((s: any) => s.supplierStatus && s.supplierStatus !== 'Approved') && !isVendor()}<div class="banner warn">Supplier status: {v.suppliers.filter((s: any) => s.supplierStatus && s.supplierStatus !== 'Approved').map((s: any) => s.name + ' ' + s.supplierStatus.toLowerCase()).join(', ')}.</div>{/if}
   {#if v.replacedBy?.length}<div class="banner warn">Replaced by {#each v.replacedBy as r}<a class="id" href="/items/{encodeURIComponent(r)}">{r}</a> {/each}</div>{/if}
   {#if v.perms.editBlocked && !v.perms.edit && !viewingOld && v.perms.startRevision}<div class="muted small" style="margin-bottom: 0.75rem">{v.perms.editBlocked}</div>{/if}
 
@@ -207,16 +234,19 @@
   </div>
 
   {#if tab === 'details'}
-    <div class="card card-body">
+    <div class="card card-body" bind:this={detailsEl}>
       {#if editing}<ItemFields bind:item={draft} editing />{:else}<ItemFields item={shown} />{/if}
+      {#if shown.type === 'part' && !editing}<ItemSuppliers itemId={id} suppliers={v.suppliers || []} docs={v.supplierDocs || []} onchange={load} />{/if}
       <h3 style="margin-top: 1.25rem">Notes</h3>
       {#if editing}<Editor bind:value={draft.body} recordId={id} />{:else if shown.body}<Markdown source={shown.body} />{:else}<div class="muted small">No notes.</div>{/if}
     </div>
   {:else if tab === 'bom'}
+    {#if !editing && v.status === 'Draft' && !v.co && v.perms.edit && can('csv.import')}<div class="row end" style="margin-bottom: 6px"><button class="small" onclick={() => (bomImport = true)}>Import BOM lines (CSV)...</button></div>{/if}
     {#if editing}<BOMEditor bind:lines={draft.bom} parent={id} />
     {:else}<BOMView {id} show={v.showing === 'draft' ? 'draft' : ''} />{/if}
   {:else if tab === 'where'}
     {#if whereUsed}
+      <div class="row end" style="margin-bottom: 6px"><button class="small" onclick={() => exportCSV('Where used ' + id, [{ label: 'Assembly', value: (w: any) => w.id }, { label: 'Rev', value: (w: any) => w.revision }, { label: 'Name', value: (w: any) => w.title }, { label: 'Status', value: (w: any) => w.status }, { label: 'Qty', value: (w: any) => w.qty }, { label: 'Level', value: (w: any) => w.level }], whereUsed.usedIn)}>Export CSV</button></div>
       <div class="card table-wrap">
         <table class="data"><thead><tr><th>Assembly</th><th>Rev</th><th>Name</th><th>Status</th><th class="num">Qty</th><th>Level</th></tr></thead><tbody>
           {#each whereUsed.usedIn as w}<tr><td><a class="id" href="/items/{encodeURIComponent(w.id)}">{w.id}</a></td><td>{w.revision}</td><td>{w.title}</td><td><Status value={w.status} /></td><td class="num">{w.qty ? qty(w.qty) : ''}</td><td>{w.level}</td></tr>
@@ -233,6 +263,7 @@
   {:else if tab === 'files'}
     {#if editing}<Files recordId={id} bind:files={draft.files} editing expected={v.expectedFiles} />
     {:else}<Files recordId={id} files={shown.files || []} expected={v.expectedFiles} />{/if}
+    {#if shown.type === 'part' && !editing}<ItemSuppliers itemId={id} suppliers={v.suppliers || []} docs={v.supplierDocs || []} onchange={load} showDocs />{/if}
   {:else if tab === 'links'}
     {#if editing}<LinksEditor bind:links={draft.links} type={draft.type} />{:else}
       <div class="card">
@@ -258,6 +289,8 @@
 </div>
 
 {#if session.commentsOpen}<Comments recordId={id} />{/if}
+{#if bomImport}<ImportDialog type="bom" target={id} title="BOM lines" onclose={() => (bomImport = false)} ondone={load} />{/if}
+{#if pdfOpen}<PdfDialog id={id} options={[...(isAssembly ? [{ key: 'bom', label: 'Include the Bill of Design', on: true }] : []), { key: 'files', label: 'Include the files list', on: true }]} build={buildPdf} onclose={() => (pdfOpen = false)} />{/if}
 {#if lockOpen}<LockDialog recordId={id} current={v.lock} onclose={() => (lockOpen = false)} ondone={() => { lockOpen = false; load(); }} />{/if}
 {#if coOpen}<AddToCO itemId={id} status={v.current.status} onclose={() => (coOpen = false)} ondone={() => { coOpen = false; load(); }} />{/if}
 {#if conflict}

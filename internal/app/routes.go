@@ -44,4 +44,5 @@ func (a *App) routes(mux *http.ServeMux) {
 	api("PATCH /api/manufacturers/{code}", a.apiUpdateManufacturer)
 
 	a.routesContent(api)
+	a.routesV2(api)
 }

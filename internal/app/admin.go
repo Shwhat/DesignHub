@@ -276,6 +276,7 @@ func (a *App) apiSystemStatus(w http.ResponseWriter, r *http.Request) error {
 	head, _ := a.Repo.Head("main")
 	tags, _ := a.Repo.Tags("baseline/")
 	st["repository"] = map[string]any{"head": head, "baselines": len(tags)}
+	st["pdf"] = a.pdfStatus(r.Context())
 	counts := map[string]int{}
 	rows, err := a.DB.Query(ctx, `SELECT kind, count(*) FROM records GROUP BY kind`)
 	if err == nil {

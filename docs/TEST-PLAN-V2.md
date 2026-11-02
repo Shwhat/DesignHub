@@ -378,8 +378,8 @@ Files are in Appendix A.3.
 | TSK-0101 to TSK-0103 | Tasks in SP-0001 assigned to `contrib1`, `editor1` and `editor2`; TSK-0101 Done, the others Open |
 | SPR-0001 | SP-0001, Active, D-7 to D+7, items TSK-0101, TSK-0102, TSK-0103 |
 | SPR-0002 | SP-0001, Planned, D+8 to D+21 |
-| MS-0001 | SP-0001, target D+30, owner `editor1`, items TSK-0101 (Done, 4 h estimate), TSK-0102 (Open, 4 h), TSK-0103 (Open, 2 h). Expected progress 1 of 3 by count, 4 of 10 h by estimate. |
-| MS-0002 | SP-0001, target D+5, items TSK-0102, TSK-0103. Expected health At risk. |
+| MS-0001 | SP-0001, "Panel ready for wiring", target D+30, owner `editor1`, items TSK-0101 (Done, 4 h estimate) and TSK-0102 (Open, 4 h). Expected progress 1 of 2 by count, 4 of 8 h by estimate. |
+| MS-0002 | SP-0001, "Enclosure delivered", target D+5, item TSK-0103 (Open, 2 h). Expected health At risk. |
 | EPC-0101 | Epic over TSK-0101 to TSK-0103 |
 | NCR-0101 | SP-0001, found on 100001-001 rev 01, Supplier COMP-0001, Reported |
 | NCR-0102 | SP-0001, found on 100002-001 rev 01, Supplier COMP-0002, Reported |
@@ -392,6 +392,6 @@ Loaded with the seed data into the file store and offered in Admin, Imports, Sam
 | File | Content |
 |---|---|
 | `parts-good.csv` | 5 production parts, 2 with blank numbers |
-| `parts-bad.csv` | 4 rows: a used number, a missing name, an unknown unit, an inactive manufacturer |
-| `bom-lines.csv` | 4 BOM lines for 100004-201 |
+| `parts-bad.csv` | 4 rows: a used number, a missing name, an unknown unit, an unknown manufacturer |
+| `bom-lines.csv` | 4 BOM lines for a draft assembly |
 | `work-items.csv` | 3 tasks and 1 issue for SP-0001 |

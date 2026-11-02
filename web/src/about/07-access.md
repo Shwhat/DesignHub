@@ -4,7 +4,7 @@
 
 | Area | Contains | Access controlled by |
 |---|---|---|
-| Library | Parts, assemblies, requirements, procedures, documents, change orders | Library role (company-wide) |
+| Library | Parts, assemblies, requirements, procedures, documents, change orders, companies | Library role (company-wide) |
 | Spaces | Pages, tasks, issues, NCRs, actions, epics | Space role (per space) |
 
 - Each user holds one library role and may hold one role in each space.
@@ -20,10 +20,22 @@
 | Release Authority | Release approved change orders and create baselines |
 | Approver | Approve or reject change orders and NCR dispositions assigned to them |
 | Editor | Create and edit engineering items, pages and work items. Open change orders. |
-| Contributor | Create and update work items and NCRs. Read-only on engineering data. |
+| Contributor | Create and update work items and NCRs, log time. Read-only on engineering data. |
+| Contractor | Edit pages and work items in the spaces they belong to. Read released library items whose home space is one of those spaces. Nothing else. |
+| Vendor | See released revisions of items their company supplies, NCRs naming their company, and actions assigned to them. Respond to supplier requests and add supplier documents. |
 | Viewer | Read only |
 
 At least one active Super Admin always exists.
+
+Admins with Manage roles and workflows can copy any role except Super Admin, rename the copy and change its permissions. Nobody can grant a permission they do not have. A custom role in use can be deactivated but not deleted.
+
+## Vendors and Contractors
+
+- Every Vendor and Contractor account is linked to one company and has an expiry date.
+- Vendors see only released revisions, and only the files in the roles Drawing, Datasheet, 3D model, Schematic and BOM file. Native design files are shown when the item allows Vendor download.
+- Vendors never see spaces, pages, requirements, procedures, documents, change orders or other companies.
+- Comments marked Internal are hidden from Vendors.
+- On its expiry date an account can no longer sign in. Admins are notified 14 days and 1 day before. Deactivating a company also stops its accounts.
 
 ## Record locking
 

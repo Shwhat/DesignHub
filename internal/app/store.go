@@ -277,14 +277,30 @@ func (a *App) lockOf(ctx context.Context, q querier, id string) ([]string, error
 
 // visible reports whether u may see a record of kind in space with the
 // given access list.
-func visible(u *User, kind, space string, lock []string) bool {
+func visible(u *User, id, kind, space string, lock []string) bool {
 	if len(lock) > 0 && !contains(lock, u.ID) && !u.IsSuperAdmin() {
 		return false
 	}
+	if u.IsVendor() {
+		// Vendors see only the records linked to their company (section 5.5).
+		return u.VendorSees[id]
+	}
 	switch kind {
-	case "page", "task", "issue", "action", "epic", "ncr":
+	case "page", "task", "issue", "action", "epic", "ncr", "sprint", "milestone":
 		return u.InSpace(space)
+	case "company":
+		return u.Can(PermLibView) && !u.IsContractor()
+	case "change_order":
+		return u.Can(PermLibView) && !u.IsContractor()
 	default:
+		if u.IsContractor() {
+			// Contractors read released library items whose home space is one of theirs.
+			if e := cache.get(id); e != nil && e.Item.Status == model.StatusDraft {
+				return false
+			}
+			_, member := u.Spaces[space]
+			return member && u.Can(PermLibView)
+		}
 		return u.Can(PermLibView)
 	}
 }
@@ -298,13 +314,13 @@ func (a *App) visibility(ctx context.Context, u *User) (func(id string) bool, er
 	}
 	return func(id string) bool {
 		if e := cache.get(id); e != nil {
-			return visible(u, kindOf(e.Item), e.Item.Space, locks[id])
+			return visible(u, id, kindOf(e.Item), e.Item.Space, locks[id])
 		}
 		var kind, space string
 		if err := a.DB.QueryRow(ctx, `SELECT kind, space_id FROM records WHERE id = $1`, id).Scan(&kind, &space); err != nil {
 			return false
 		}
-		return visible(u, kind, space, locks[id])
+		return visible(u, id, kind, space, locks[id])
 	}, nil
 }
 

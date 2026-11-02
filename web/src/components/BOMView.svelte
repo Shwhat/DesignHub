@@ -2,6 +2,16 @@
   import Icon from './Icon.svelte';
   import { get } from '../lib/api';
   import { qty } from '../lib/format';
+  import { exportCSV } from '../lib/exporting';
+  function exportBOM() {
+    if (flat) exportCSV('BOM flat ' + id, [{ label: 'ID', value: (r: any) => r.id }, { label: 'Rev', value: (r: any) => r.revision }, { label: 'Name', value: (r: any) => r.title }, { label: 'Status', value: (r: any) => r.status }, { label: 'Unit', value: (r: any) => r.unit }, { label: 'Total quantity', value: (r: any) => r.total }], data.flat || []);
+    else {
+      const all: any[] = [];
+      const walk = (n: any, lvl: number) => { for (const c of n.children || []) { all.push({ ...c, level: lvl }); walk(c, lvl + 1); } };
+      walk(data.tree, 1);
+      exportCSV('BOM ' + id, [{ label: 'Level', value: (r: any) => r.level }, { label: 'Find', value: (r: any) => r.find }, { label: 'ID', value: (r: any) => r.id }, { label: 'Rev', value: (r: any) => r.revision }, { label: 'Name', value: (r: any) => r.title }, { label: 'Qty', value: (r: any) => r.qty }, { label: 'Unit', value: (r: any) => r.unit }, { label: 'Ref des', value: (r: any) => (r.refdes || []).join(' ') }, { label: 'Extended qty', value: (r: any) => r.extended }], all);
+    }
+  }
   import Status from './Status.svelte';
   import { onEvent } from '../lib/state.svelte';
   import { onDestroy } from 'svelte';
@@ -60,6 +70,7 @@
   <div class="row" style="margin-bottom: 0.5rem">
     {#if compact}<strong><a href="/items/{encodeURIComponent(id)}">{id}</a> {data.tree.title}</strong>{/if}
     <span class="spacer"></span>
+    {#if !compact}<button class="small" onclick={exportBOM}>Export CSV</button>{/if}
     <div class="row" role="group" aria-label="View">
       <button class="small" class:primary={!flat} onclick={() => (flat = false)}>Tree</button>
       <button class="small" class:primary={flat} onclick={() => (flat = true)}>Flat</button>

@@ -10,23 +10,23 @@ type Lookup func(id string) *Item
 
 // Node is a line in a BOM tree. The root node is the assembly itself.
 type Node struct {
-	Find      int      `json:"find"`
-	ID        string   `json:"id"`
-	Revision  string   `json:"revision"`
-	Title     string   `json:"title"`
-	Status    string   `json:"status"`
-	Qty       float64  `json:"qty"`
-	Unit      string   `json:"unit"`
-	RefDes    []string `json:"refdes"`
-	Notes     string   `json:"notes"`
-	Extended  float64  `json:"extended"`
-	Level     int      `json:"level"`
-	Missing   bool     `json:"missing,omitempty"`
-	Cycle     bool     `json:"cycle,omitempty"`
-	Hidden    bool     `json:"hidden,omitempty"`
-	Assembly  bool     `json:"assembly,omitempty"`
-	Children  []*Node  `json:"children,omitempty"`
-	Issues    []string `json:"issues,omitempty"`
+	Find     int      `json:"find"`
+	ID       string   `json:"id"`
+	Revision string   `json:"revision"`
+	Title    string   `json:"title"`
+	Status   string   `json:"status"`
+	Qty      float64  `json:"qty"`
+	Unit     string   `json:"unit"`
+	RefDes   []string `json:"refdes"`
+	Notes    string   `json:"notes"`
+	Extended float64  `json:"extended"`
+	Level    int      `json:"level"`
+	Missing  bool     `json:"missing,omitempty"`
+	Cycle    bool     `json:"cycle,omitempty"`
+	Hidden   bool     `json:"hidden,omitempty"`
+	Assembly bool     `json:"assembly,omitempty"`
+	Children []*Node  `json:"children,omitempty"`
+	Issues   []string `json:"issues,omitempty"`
 }
 
 // Tree builds the multi-level BOM of an assembly. Extended quantities

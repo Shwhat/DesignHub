@@ -314,7 +314,7 @@ Vendors see no spaces, pages, requirements, procedures, documents, change orders
 | Companies and `supplied by` links (v2) | PostgreSQL |
 | Workflows, custom roles (v2) | PostgreSQL |
 | Sprints, milestones, time entries (v2) | PostgreSQL |
-| Templates (v2) | Git, as markdown files under `templates/` |
+| Templates (v2) | PostgreSQL, with every body version kept |
 | CSV import records (v2) | PostgreSQL; the uploaded file is kept in the file store |
 | Audit log | PostgreSQL |
 | Search index and link graph | PostgreSQL, rebuilt from git |
@@ -864,7 +864,7 @@ Users edit and delete their own entries. Users with "Edit anyone's time entries"
 | Title pattern | Text | No | For example `Design review {date}` |
 | Body | Long text | Yes | May contain live blocks and placeholders |
 | Active | Yes/No | Yes | |
-| Changed by, Changed on | | Auto | Version history kept in git |
+| Changed by, Changed on | | Auto | Every body version is kept |
 
 Placeholders filled when the page is created: `{date}`, `{user}`, `{space}`, `{title}`. A page keeps a reference to its template; later template changes do not change existing pages.
 

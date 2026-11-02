@@ -160,6 +160,10 @@ func (a *App) apiSignIn(w http.ResponseWriter, r *http.Request) error {
 		return &Error{Status: http.StatusUnauthorized, Code: "bad_credentials", Message: "Username or password is incorrect."}
 	}
 	a.Limiter.Reset(keys...)
+	if a.accountExpired(ctx, id) {
+		a.Audit(ctx, nil, ip, "signin.expired", "", map[string]any{"username": name})
+		return errExpired
+	}
 	csrf, err := a.startSession(ctx, w, r, id, in.Keep)
 	if err != nil {
 		return err

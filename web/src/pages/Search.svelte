@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { exportCSV } from '../lib/exporting';
   import Icon from '../components/Icon.svelte';
   import { untrack } from 'svelte';
   import { get, post, del } from '../lib/api';
@@ -36,7 +37,7 @@
 </script>
 
 <div class="content">
-  <h1>Search</h1>
+  <div class="row"><h1 style="margin: 0">Search</h1><span class="spacer"></span>{#if results.length}<button class="small" onclick={() => exportCSV('Search results', [{ label: 'ID', value: (r: any) => r.id }, { label: 'Type', value: (r: any) => r.kind }, { label: 'Title', value: (r: any) => r.title }, { label: 'Status', value: (r: any) => r.status }, { label: 'Space', value: (r: any) => r.space }], results)}>Export CSV</button>{/if}</div>
   <form class="row" style="margin-bottom: 1rem" onsubmit={(e) => { e.preventDefault(); run(); }}>
     <input style="flex: 1; min-width: 200px" placeholder="Search text or an ID" bind:value={f.q} aria-label="Search" />
     <button class="primary">Search</button>

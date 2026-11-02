@@ -24,12 +24,31 @@
   import Admin from './pages/admin/Admin.svelte';
   import About from './pages/About.svelte';
   import NotFound from './pages/NotFound.svelte';
+  import CompanyView from './pages/CompanyView.svelte';
+  import Sprints from './pages/Sprints.svelte';
+  import SprintView from './pages/SprintView.svelte';
+  import Milestones from './pages/Milestones.svelte';
+  import Timeline from './pages/Timeline.svelte';
+  import TimeReport from './pages/TimeReport.svelte';
+  import MyTime from './pages/MyTime.svelte';
+  import VendorHome from './pages/VendorHome.svelte';
+  import SupplierNCRs from './pages/SupplierNCRs.svelte';
+  import { isVendor } from './lib/state.svelte';
 
   loadSession();
 
   type R = { pattern: string; component: any };
   const routes: R[] = [
     { pattern: '/', component: Home },
+    { pattern: '/companies/:id', component: CompanyView },
+    { pattern: '/spaces/:id/sprints', component: Sprints },
+    { pattern: '/sprints/:id', component: SprintView },
+    { pattern: '/spaces/:id/milestones', component: Milestones },
+    { pattern: '/milestones/:id', component: Milestones },
+    { pattern: '/spaces/:id/timeline', component: Timeline },
+    { pattern: '/spaces/:id/time-report', component: TimeReport },
+    { pattern: '/my-time', component: MyTime },
+    { pattern: '/supplier-ncrs', component: SupplierNCRs },
     { pattern: '/my-work', component: MyWork },
     { pattern: '/library', component: Library },
     { pattern: '/library/:tab', component: Library },
@@ -61,7 +80,7 @@
   const current = $derived.by(() => {
     for (const r of routes) {
       const params = match(r.pattern, route.path);
-      if (params) return { component: r.component, params, pattern: r.pattern };
+      if (params) return { component: r.component === Home && isVendor() ? VendorHome : r.component, params, pattern: r.pattern };
     }
     return { component: NotFound, params: {}, pattern: '' };
   });

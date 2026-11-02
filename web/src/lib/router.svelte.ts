@@ -70,5 +70,8 @@ export function recordPath(id: string, kind = ''): string {
   if (/^CO-/.test(id) || kind === 'change_order') return '/change-orders/' + id;
   if (/^(TSK|ISS|NCR|ACT|EPC)-/.test(id)) return '/work/' + id;
   if (/^SP-/.test(id)) return '/spaces/' + id;
+  if (/^COMP-/.test(id) || kind === 'company') return '/companies/' + id;
+  if (/^SPR-/.test(id)) return '/sprints/' + id;
+  if (/^MS-/.test(id) || kind === 'milestone') return '/milestones/' + id;
   return '/items/' + encodeURIComponent(id);
 }

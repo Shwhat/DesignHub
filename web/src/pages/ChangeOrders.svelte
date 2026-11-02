@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { exportCSV, fullExport } from '../lib/exporting';
   import { get, post } from '../lib/api';
   import { can, session, spaceName, toast } from '../lib/state.svelte';
   import { navigate } from '../lib/router.svelte';
@@ -20,6 +21,8 @@
 
 <div class="content">
   <div class="row" style="margin-bottom: 1rem"><h1 style="margin: 0">Change orders</h1><span class="spacer"></span>
+    <button class="small" onclick={() => exportCSV('Change orders', [{ label: 'ID', value: (c: any) => c.id }, { label: 'Title', value: (c: any) => c.title }, { label: 'State', value: (c: any) => c.state }, { label: 'Change type', value: (c: any) => c.changeType }, { label: 'Owner', value: (c: any) => c.owner }, { label: 'Items', value: (c: any) => c.items }, { label: 'Awaiting', value: (c: any) => c.awaiting }, { label: 'Updated', value: (c: any) => c.updated }], rows)}>Export CSV</button>
+    <button class="small" onclick={() => fullExport('change-orders')}>Export all fields</button>
     <a class="btn" href="/baselines">Baselines</a>
     {#if can('co.create')}<button class="primary" onclick={() => (creating = true)}>New change order</button>{/if}</div>
   <div class="tabs">

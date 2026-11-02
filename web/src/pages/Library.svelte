@@ -7,6 +7,11 @@
   import { date } from '../lib/format';
   import Status from '../components/Status.svelte';
   import Modal from '../components/Modal.svelte';
+  import Menu from '../components/Menu.svelte';
+  import ImportDialog from '../components/ImportDialog.svelte';
+  import CompanyList from '../components/CompanyList.svelte';
+  import { isVendor, isContractor, session } from '../lib/state.svelte';
+  import { exportCSV, fullExport } from '../lib/exporting';
   let { params }: { params: any; pattern?: string } = $props();
 
   const tabs = [
@@ -15,7 +20,8 @@
     { key: 'requirement', label: 'Requirements' },
     { key: 'procedure', label: 'Procedures' },
     { key: 'document', label: 'Documents' },
-  ];
+    ...(isVendor() || isContractor() ? [] : [{ key: 'company', label: 'Companies' }]),
+  ].filter((t) => !isVendor() || t.key === 'part' || t.key === 'assembly');
   const allColumns = [
     { key: 'id', label: 'ID' },
     { key: 'revision', label: 'Rev' },
@@ -48,7 +54,9 @@
   let sortKey = $state('id');
   let sortDir = $state(1);
 
+  let importing = $state(false);
   async function load() {
+    if (tab === 'company') return;
     rows = await get(`/api/library?kind=${tab}${all ? '&all=1' : ''}`);
   }
   async function loadPrefs() {
@@ -56,7 +64,11 @@
     try { saved = await get('/api/filters?view=library', { background: true }); } catch {}
   }
   $effect(() => { tab; all; load(); });
-  $effect(() => { tab; loadPrefs(); });
+  $effect(() => { tab; if (tab !== 'company') loadPrefs(); });
+  const fullType: Record<string, string> = { part: 'parts', assembly: 'parts', requirement: 'requirements', procedure: 'procedures', document: 'documents' };
+  function exportTable() {
+    exportCSV('Library ' + tabs.find((t) => t.key === tab)?.label, cols.map((c) => ({ label: allColumns.find((x) => x.key === c)?.label || c, value: (r: any) => cell(r, c) })), shown);
+  }
 
   const shown = $derived.by(() => {
     const t = text.trim().toLowerCase();
@@ -96,13 +108,24 @@
 
 <div class="content">
   <div class="row" style="margin-bottom: 0.75rem">
-    <h1 style="margin: 0">Library</h1>
+    <h1 style="margin: 0">{isVendor() ? 'Supplied items' : 'Library'}</h1>
+    {#if isVendor()}<span class="muted">{session.me?.companyName}</span>{/if}
     <span class="spacer"></span>
-    {#if can('library.edit')}<a class="btn primary" href="/items/new?type={tab === 'assembly' ? 'assembly' : tab}">New {tabs.find((t) => t.key === tab)?.label.slice(0, -1).toLowerCase()}</a>{/if}
+    {#if tab !== 'company'}
+      <Menu label="Actions" cls="small">
+        <button onclick={exportTable}>Export CSV</button>
+        <button onclick={() => fullExport(fullType[tab])}>Export all fields (CSV)...</button>
+        {#if can('csv.import') && (tab === 'part' || tab === 'requirement')}<hr /><button onclick={() => (importing = true)}>Import CSV...</button>{/if}
+      </Menu>
+      {#if can('library.edit')}<a class="btn primary" href="/items/new?type={tab === 'assembly' ? 'assembly' : tab}">New {tabs.find((t) => t.key === tab)?.label.slice(0, -1).toLowerCase()}</a>{/if}
+    {/if}
   </div>
   <div class="tabs" role="tablist">
     {#each tabs as t}<button role="tab" class:active={tab === t.key} aria-selected={tab === t.key} onclick={() => setTab(t.key)}>{t.label}</button>{/each}
   </div>
+  {#if tab === 'company'}
+    <CompanyList />
+  {:else}
   <div class="row" style="margin-bottom: 0.75rem">
     <input style="max-width: 280px" placeholder="Filter by ID, name or label" bind:value={text} aria-label="Filter" />
     <select style="width: auto" bind:value={status} aria-label="Status">
@@ -146,7 +169,12 @@
     </div>
   {/if}
   <div class="muted small" style="margin-top: 0.5rem">{shown.length} of {rows.length}</div>
+  {/if}
 </div>
+
+{#if importing}
+  <ImportDialog type={tab === 'part' ? 'parts' : 'requirements'} target={session.space} title={tab === 'part' ? 'parts' : 'requirements'} onclose={() => (importing = false)} ondone={load} />
+{/if}
 
 {#if colDialog}
   <Modal title="Columns" onclose={() => (colDialog = false)}>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { exportCSV } from '../lib/exporting';
   import Icon from '../components/Icon.svelte';
   import { get } from '../lib/api';
   import Status from '../components/Status.svelte';
@@ -16,6 +17,8 @@
   <div class="row" style="margin-bottom: 1rem">
     {#if item}<span class="chip">Assembly {item}<button aria-label="Clear" onclick={() => (item = '')}><Icon name="remove" size={14} /></button></span>{:else}<div style="width: 300px"><RecordPicker kinds="assembly,part" placeholder="Limit to an assembly" onpick={(id) => (item = id)} /></div>{/if}
     <select style="width: auto" bind:value={cov} aria-label="Coverage"><option value="">Any coverage</option><option>Complete</option><option>No test</option><option>No design</option><option>No design and no test</option></select>
+    <span class="spacer"></span>
+    <button class="small" onclick={() => exportCSV('Traceability', [{ label: 'Requirement', value: (r: any) => r.id }, { label: 'Title', value: (r: any) => r.title }, { label: 'Status', value: (r: any) => r.status }, { label: 'Satisfied by', value: (r: any) => r.satisfiedBy.map((s: any) => s.id) }, { label: 'Verified by', value: (r: any) => r.verifiedBy.map((s: any) => s.id) }, { label: 'Coverage', value: (r: any) => r.coverage }], shown)}>Export CSV</button>
   </div>
   <div class="card table-wrap"><table class="data">
     <thead><tr><th>Requirement</th><th>Status</th><th>Satisfied by</th><th>Verified by</th><th>Coverage</th></tr></thead>

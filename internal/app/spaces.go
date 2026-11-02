@@ -184,7 +184,7 @@ func (a *App) apiSpace(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	rows.Close()
-	rows, err = a.DB.Query(ctx, `SELECT id, type FROM work_items WHERE space_id = $1 AND status NOT IN ('Done', 'Cancelled', 'Closed')`, id)
+	rows, err = a.DB.Query(ctx, `SELECT id, type FROM work_items WHERE space_id = $1 AND state_cat IN ('open', 'active')`, id)
 	if err != nil {
 		return err
 	}
