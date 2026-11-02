@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Document | DesignHub data model |
-| Version | 0.2 (draft for review) |
-| Date | 2026-10-30 |
+| Version | 0.3 (draft for review) |
+| Date | 2026-11-01 |
 | Owner | Devon |
 | Status | Draft |
 | Related | [SPEC.md](SPEC.md) |
@@ -24,7 +24,7 @@
 
 ## 1. Scope
 
-This document defines the records DesignHub stores, how they are identified, how they link, how they are revised and controlled, where they are stored, and the fields of every version 1 record type. Version 2 and version 3 features are included as placeholders only.
+This document defines the records DesignHub stores, how they are identified, how they link, how they are revised and controlled, where they are stored, and the fields of every version 1 and version 2 record type. Version 3 features are included as placeholders only. Version 2 additions are marked (v2).
 
 ## 2. Identification
 
@@ -106,6 +106,10 @@ Format: prefix, dash, number. One counter per type. The number grows past 9999 w
 | Nonconformance | NCR |
 | Action | ACT |
 | Epic | EPC |
+| Company (v2) | COMP |
+| Milestone (v2) | MS |
+| Sprint (v2) | SPR |
+| Template (v2) | TPL |
 
 ### 2.7 Deletion and retirement
 
@@ -131,10 +135,14 @@ Links are typed and directional. A link is stored once, on the source record, an
 | fixed by | Issue, NCR | Change order | fixes |
 | blocks | Work item | Work item | blocked by |
 | duplicates | Work item | Work item | duplicated by |
+| supplied by (v2) | Part, assembly | Company | supplies |
+| supplier (v2) | NCR | Company | has nonconformance |
 | replaced by | Any record | Record of the same type | replaces |
 | relates to | Any record | Any record | relates to |
 
 `contains` is stored as BOM lines on the assembly (section 7.4).
+
+`supplied by` is a business relationship, not part of the design. It is stored in PostgreSQL, is not revision controlled, can be changed on released items without a change order, and every change is recorded in the audit log.
 
 ### 3.2 Link rules
 
@@ -184,6 +192,8 @@ A change order is Approved when every assigned approver has approved, and Reject
 
 Tasks, issues, actions and epics: Open, In Progress, In Review, Done. Blocked and Cancelled are available from any open state.
 
+This is the default workflow. From v2, Admins can edit it (section 4.7).
+
 ### 4.6 Nonconformance workflow
 
 | State | Entry requires |
@@ -193,6 +203,26 @@ Tasks, issues, actions and epics: Open, In Progress, In Review, Done. Blocked an
 | Corrective Action | |
 | Verified | Root cause and corrective action |
 | Closed | Verification of effectiveness. A linked change order if a design change is required. |
+
+### 4.7 Editable workflows (v2)
+
+- Admins edit one workflow per work item type: task, issue, action, epic and NCR. A workflow applies in every space.
+- Change order states (section 4.4) and engineering item statuses (section 4.3) are fixed and cannot be edited.
+- A workflow has states and transitions. Section 7.21 lists their fields.
+- Every state belongs to a category: Open, Active, Done or Cancelled. Categories drive My Work, overdue checks, epic and milestone progress, sprint close and reports, so these keep working when states are renamed or added.
+- Each transition lists the roles allowed to perform it. Each state lists the fields required to enter it.
+- A workflow is saved as a new version. Items keep their current state. If a state is removed, the Admin maps every item in it to another state before saving, and each move is recorded in the item history.
+- Board columns follow the workflow's states in order.
+
+The NCR workflow has fixed rules that editing cannot remove:
+
+| Fixed rule | Applies to |
+|---|---|
+| Entering it requires a disposition and signed disposition approvals | The state marked Disposition |
+| Root cause and corrective action are required | Entering any Done state |
+| A linked change order is required when Requires design change is Yes | Entering any Done state |
+
+States can be renamed and added around these rules. The Disposition state cannot be removed.
 
 ## 5. Library, spaces, people and permissions
 
@@ -205,12 +235,14 @@ Tasks, issues, actions and epics: Open, In Progress, In Review, Done. Blocked an
 
 - Every library record carries a home space. The home space is used for filtering and ownership. It does not limit access.
 - Every page and work item belongs to exactly one space.
-- Vendors and Contractors (v2) see only library records linked to their company or assigned projects.
+- Vendors and Contractors (v2) see only the records described in section 5.5.
 
 ### 5.2 Roles
 
 - Each user holds one library role and may hold one role in each space.
 - Roles control what a user can do. People fields on a record (section 5.3) record who is responsible and give no extra permissions.
+- (v2) Admins create custom roles by copying an existing role, then renaming it and adjusting its permissions. Super Admin cannot be copied. A custom role in use cannot be deleted; it is deactivated, and no new users can be given it.
+- (v2) Built-in roles added in v2: Vendor (library role) and Contractor (library and space role).
 
 ### 5.3 People fields
 
@@ -229,6 +261,39 @@ Tasks, issues, actions and epics: Open, In Progress, In Review, Done. Blocked an
 - People not on the list do not see the record at all: not in search, lists, links, BOMs or notifications.
 - BOM quantities, extended quantities and validation still include locked items, so totals remain correct.
 
+### 5.5 Companies, Vendors and Contractors (v2)
+
+Every Vendor and Contractor account is linked to one company (section 7.20). Other accounts may also be linked to a company for reference; this gives no extra access.
+
+**Vendor** (library role)
+
+| Can see | Rule |
+|---|---|
+| Parts and assemblies | Items with a `supplied by` link to the vendor's company. Released revisions only; drafts and change orders are never shown. |
+| Files on those items | Released files in the roles Drawing, Datasheet, 3D model, Schematic and BOM file. Native design files only when the item's "Vendors may download native files" is Yes. |
+| NCRs | NCRs whose Supplier is the vendor's company, in any space. Read the NCR and edit only the Supplier response fields (section 7.12). |
+| Actions | Actions assigned to the vendor. |
+| Comments | On the records above. Comments on these records are visible to the vendor unless marked Internal. |
+| Uploads | Supplier documents on the records above. Supplier documents are kept apart from revision files and never change a released revision. |
+
+Vendors see no spaces, pages, requirements, procedures, documents, change orders, other companies or other users' details beyond display names.
+
+**Contractor** (library role and space role)
+
+| Can see or do | Rule |
+|---|---|
+| Spaces | Only spaces where the contractor is a member, with the Contractor space role: create and edit pages and work items, log time, comment |
+| Library | Released revisions of items whose home space is one of those spaces, read only. No change orders. |
+| Elsewhere | Nothing. Other spaces, their pages and work items are hidden. |
+
+**Comments marked Internal (v2).** Any user other than a Vendor can mark a comment Internal. Internal comments are hidden from Vendors.
+
+**Account expiry.** Any account can have an expiry date; it is required for Vendor and Contractor accounts.
+
+- On the expiry date the account is disabled at the start of the day in the server time zone. Sign-in is refused with "This account has expired. Contact your DesignHub administrator."
+- Admins with the Manage users permission receive a notification 14 days and 1 day before an expiry.
+- An Admin can extend the date or enable the account again; the change is recorded in the audit log.
+
 ## 6. Storage
 
 ### 6.1 Storage split
@@ -246,6 +311,11 @@ Tasks, issues, actions and epics: Open, In Progress, In Review, Done. Blocked an
 | Spaces, users, roles, memberships | PostgreSQL |
 | Comments, watchers, notifications | PostgreSQL |
 | Manufacturer list and other Admin lists | PostgreSQL |
+| Companies and `supplied by` links (v2) | PostgreSQL |
+| Workflows, custom roles (v2) | PostgreSQL |
+| Sprints, milestones, time entries (v2) | PostgreSQL |
+| Templates (v2) | Git, as markdown files under `templates/` |
+| CSV import records (v2) | PostgreSQL; the uploaded file is kept in the file store |
 | Audit log | PostgreSQL |
 | Search index and link graph | PostgreSQL, rebuilt from git |
 | Attachment files | File store, referenced from git |
@@ -309,6 +379,7 @@ All common engineering item fields, plus:
 | Commodity code | Choice | No | Admin list |
 | Vendors may download native files | Yes/No | Yes | Default No |
 | Body | Long text | No | |
+| Suppliers (v2) | Company list | No | Stored as `supplied by` links (section 3.1). Not revision controlled. |
 
 ### 7.3 COTS part fields
 
@@ -469,7 +540,7 @@ All common engineering item fields, plus:
 | Controlled defaults | Page type and Yes/No list | Yes | |
 | Archived | Yes/No | Auto | Read-only and hidden from navigation. Spaces are never deleted. |
 | Created by | User | Auto | |
-| Templates | Placeholder | No | v2 |
+| Templates (v2) | Template list | No | Section 7.25 |
 
 ### 7.11 Work items (task, issue, action, epic)
 
@@ -488,7 +559,11 @@ All common engineering item fields, plus:
 | Due date | Date | No | |
 | Epic | Link to epic | No | Not on epics |
 | Created by, Labels, Locked, Attachments, Links, Watchers | | | |
-| Estimate, Time logged, Sprint, Milestone | Placeholders | No | v2 |
+| Estimate (v2) | Hours, in 0.25 steps | No | |
+| Time logged (v2) | Hours | Computed | Sum of time entries (section 7.24) |
+| Remaining (v2) | Hours | Computed | Estimate minus time logged, not below zero |
+| Sprint (v2) | Sprint in the same space | No | Not on epics |
+| Milestone (v2) | Milestone in the same space | No | |
 
 **Type-specific fields**
 
@@ -525,6 +600,14 @@ All work item common fields, with Status following section 4.6, plus:
 | Corrective action | Long text | To reach Verified | |
 | Verification of effectiveness | Long text | To reach Closed | |
 | Requires design change | Yes/No | Yes | If Yes, a linked change order is required to close |
+| Supplier (v2) | Company | No | Stored as a `supplier` link. Gives the company's Vendors access to this NCR. |
+| Supplier response requested (v2) | Date | No | Setting it notifies the supplier's Vendor users |
+| Supplier response due (v2) | Date | No | |
+| Supplier root cause (v2) | Long text | No | Editable by the supplier's Vendors |
+| Supplier corrective action (v2) | Long text | No | Editable by the supplier's Vendors |
+| Supplier responded on (v2) | Date and time | Auto | Set when a Vendor first saves a response |
+
+With an editable NCR workflow (section 4.7), "To reach Dispositioned", "To reach Verified" and "To reach Closed" refer to the fixed rules of that section.
 
 ### 7.13 User
 
@@ -543,7 +626,9 @@ All work item common fields, with Status following section 4.6, plus:
 | Time zone | Choice | Yes | |
 | Active | Yes/No | Yes | Users are never deleted |
 | Last sign-in | Date and time | Auto | |
-| Company, Account expiry, Email notifications | Placeholders | No | v2 |
+| Company (v2) | Company | Vendor and Contractor | Optional for others, reference only |
+| Account expiry (v2) | Date | Vendor and Contractor | Optional for others. Section 5.5. |
+| Email notifications (v2) | Setting per event, and delivery | No | Section 7.27 |
 
 ### 7.14 Role
 
@@ -554,9 +639,25 @@ All work item common fields, with Status following section 4.6, plus:
 | Applies to | Choice | Yes | Library, Space, Both |
 | Permissions | Permission list | Yes | |
 | Can add or remove change order approvers | Yes/No | Yes | |
-| Copied from | Placeholder | No | v2 |
+| Copied from (v2) | Role | Auto | Set when a custom role is created |
+| Company scoped (v2) | Yes/No | Auto | Copied from the Vendor or Contractor role. A scoped role keeps the section 5.5 rules. |
+| Active (v2) | Yes/No | Yes | Inactive roles cannot be assigned |
 
-Version 1 built-in roles: Super Admin, Admin, Release Authority, Approver, Editor, Contributor, Viewer.
+Version 1 built-in roles: Super Admin, Admin, Release Authority, Approver, Editor, Contributor, Viewer. Version 2 adds Vendor and Contractor.
+
+**Permissions added in v2**
+
+| Permission | Built-in roles that have it |
+|---|---|
+| Manage roles and workflows | Super Admin, Admin |
+| Manage templates | Super Admin, Admin; space Admins for their space's templates |
+| Manage companies | Super Admin, Admin, Editor |
+| Plan sprints and milestones | Super Admin, Admin, Editor |
+| Log time | All except Viewer and Vendor |
+| Edit anyone's time entries | Super Admin, Admin |
+| View time reports | Super Admin, Admin, Editor |
+| Import CSV | Super Admin, Admin, Editor |
+| Export CSV and PDF | All roles. Exports contain only records the user can see. |
 
 ### 7.15 Comment
 
@@ -570,7 +671,10 @@ Version 1 built-in roles: Super Admin, Admin, Release Authority, Approver, Edito
 | Created on | Date and time | Auto | |
 | Edited on | Date and time | Auto | Earlier text kept in history |
 | Resolved | Yes/No | No | |
-| Inline anchor | Placeholder | No | v2 |
+| Internal (v2) | Yes/No | No | Hidden from Vendors (section 5.5) |
+| Inline anchor (v2) | Quoted text with surrounding text | No | Inline comments only. Pages and long text fields of records. |
+| Anchor version (v2) | Version or revision | Auto | The version the quoted text was selected on |
+| Anchor found (v2) | Yes/No | Computed | No when the quoted text no longer appears in the current version. The comment then shows as "Text changed" in the comment panel. |
 
 Comments are never deleted. The author or an Admin can hide a comment, and the hide is logged.
 
@@ -585,7 +689,9 @@ Comments are never deleted. The author or an Admin can hide a comment, and the h
 | Summary | Text | Auto | |
 | Created on | Date and time | Auto | |
 | Read | Yes/No | Auto | |
-| Email sent | Placeholder | No | v2 |
+| Email sent (v2) | Date and time | Auto | Blank when not emailed |
+
+Events added in v2: Account expiring, Supplier response requested, Supplier responded, Sprint started, Sprint closed, Milestone at risk, Import finished.
 
 Notifications are never sent about records the recipient cannot access.
 
@@ -655,6 +761,161 @@ Initial expected files:
 | -9XX Interface or make-on-assembly | None |
 | COTS parts | Datasheet |
 
+### 7.20 Company (v2)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| ID | COMP-NNNN | Auto | |
+| Name | Text, max 100 | Yes | Unique |
+| Kind | Choice list | Yes | Vendor, Contractor, Customer, Other. More than one allowed. |
+| Supplier status | Choice | No | Approved, Conditional, Not approved. Shown as a warning on parts and NCRs when not Approved. |
+| Manufacturer codes | Manufacturer list | No | Manufacturers this company makes or sells |
+| Address | Long text | No | |
+| Phone, Website | Text | No | |
+| Contacts | Contact list | No | Name, role, email, phone. Contacts are not users. |
+| Notes | Long text | No | |
+| Active | Yes/No | Yes | Inactive companies cannot be chosen for new links. Their Vendor and Contractor accounts are disabled. |
+| Created by, Labels, Locked, Attachments, Links, Watchers | | | Attachments on a company are never shown to Vendors |
+
+Companies are library records. They are not revision controlled; every change is kept in the record history. A company is never deleted.
+
+### 7.21 Workflow (v2)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| Item type | Choice | Auto | Task, Issue, Action, Epic, NCR. One workflow each. |
+| Version | Number | Auto | Raised on every save |
+| States | State list | Yes | At least one Open and one Done state |
+| Transitions | Transition list | Yes | |
+| Initial state | State | Yes | Must be in the Open category |
+| Changed by, Changed on | | Auto | |
+
+**State**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| Name | Text, max 30 | Yes | Unique in the workflow |
+| Category | Choice | Yes | Open, Active, Done, Cancelled |
+| Color | Choice | Yes | Grey, Blue, Amber, Green, Red |
+| Sort order | Number | Yes | Board column order |
+| Required fields | Field list | No | Fields that must be filled to enter this state |
+| Fixed rule | Choice | Auto | NCR only: Disposition, or none |
+
+**Transition**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| From | State, or Any | Yes | |
+| To | State | Yes | |
+| Allowed roles | Role list | Yes | Space roles. Empty means anyone with Create and update work items. |
+| Assignee may always move | Yes/No | No | Default Yes |
+
+### 7.22 Sprint (v2)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| ID | SPR-NNNN | Auto | |
+| Name | Text, max 60 | Yes | Unique in the space |
+| Space | Space | Yes | |
+| Goal | Text | No | |
+| Start date, End date | Date | Yes | End after start |
+| State | Choice | Auto | Planned, Active, Closed. At most one Active sprint per space. |
+| Committed | Snapshot | Auto | Items and estimates at start |
+| Completed | Snapshot | Auto | Items Done and time logged at close |
+
+At close the user chooses where unfinished items go: the next Planned sprint or no sprint. The choice and the moved items are recorded on the sprint.
+
+### 7.23 Milestone (v2)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| ID | MS-NNNN | Auto | |
+| Name | Text, max 80 | Yes | |
+| Space | Space | Yes | |
+| Target date | Date | Yes | |
+| Description | Long text | No | |
+| Owner | User | Yes | |
+| Progress | Computed | Auto | Share of linked items in a Done state, by count and by estimate |
+| Health | Computed | Auto | Done when all linked items are Done or Cancelled; Late after the target date; At risk within 7 days of the target date with less than 80 percent done; otherwise On track |
+| Completed on | Date | Auto | |
+
+### 7.24 Time entry (v2)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| Work item | Task, issue, action, NCR | Yes | Not on epics; an epic totals its child items |
+| User | User | Auto | The person who did the work |
+| Date | Date | Yes | Not in the future |
+| Duration | Hours, 0.25 to 24 | Yes | |
+| Note | Text | No | |
+| Created on, Edited on | Date and time | Auto | |
+
+Users edit and delete their own entries. Users with "Edit anyone's time entries" edit any entry. Every change is kept in the work item history.
+
+### 7.25 Template (v2)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| ID | TPL-NNNN | Auto | |
+| Name | Text, max 60 | Yes | |
+| Scope | Choice | Yes | All spaces, or one space |
+| Description | Text | No | Shown in the New page dialog |
+| Page type | Choice | Yes | Admin list. Sets the new page's type. |
+| Title pattern | Text | No | For example `Design review {date}` |
+| Body | Long text | Yes | May contain live blocks and placeholders |
+| Active | Yes/No | Yes | |
+| Changed by, Changed on | | Auto | Version history kept in git |
+
+Placeholders filled when the page is created: `{date}`, `{user}`, `{space}`, `{title}`. A page keeps a reference to its template; later template changes do not change existing pages.
+
+Initial templates (All spaces): Design review, Test report, Meeting notes, Work instruction, Procedure, Decision record.
+
+### 7.26 CSV import (v2)
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| Record type | Choice | Yes | Parts, BOM lines, Requirements, Work items, Manufacturers, Companies |
+| Target | Space or assembly | Depends | Space for work items; draft assembly for BOM lines |
+| Mode | Choice | Yes | Create only; Create and update. BOM lines: Add to BOM; Replace BOM. |
+| File | Attachment | Yes | UTF-8, comma separated, header row |
+| Rows, Created, Updated, Errors | Number | Auto | |
+| Error report | CSV | Auto | Original rows with an error column |
+| Imported by, Imported on | | Auto | |
+
+Rules:
+
+- Column names are the field names shown in exports, so an exported file can be edited and imported again.
+- Every import shows a preview first. Nothing is saved while any row has an error. The import saves all rows or none.
+- Imported engineering items are created as Drafts. Updates are allowed only on items that have never been released; a row for a released item is an error ("Released items change only through a change order.").
+- Production numbers in an import must be unused, or blank for the next number.
+- Change orders, signatures, history, comments and users cannot be imported.
+- Every import is recorded in the audit log with its file.
+
+**CSV export.** Every list and table offers Export CSV: the rows shown with the current filters, sort and columns. Each record type also has a full export with every field. Exports contain only records the user can see, and every export is recorded in the audit log.
+
+### 7.27 Email notifications (v2)
+
+| Field | On | Notes |
+|---|---|---|
+| Email delivery | User | Off, Immediately, Daily summary. Default Off. |
+| Events by email | User | Choice per notification event. Defaults: Assigned, Mentioned, Approval requested, Supplier response requested, Account expiring. |
+| Mail server settings | System | Set by a Super Admin in Admin, System. Mail server to be decided (SPEC.md section 17). |
+
+Email is sent only for records the recipient can access. The message gives the event, record ID and title and a link, never record content beyond the title.
+
+### 7.28 PDF export (v2)
+
+PDF export creates a file and no record. It is available for pages (one page, or a page and all pages below it), engineering items, change orders, work items and NCRs.
+
+| Part of the PDF | Content |
+|---|---|
+| Header | DesignHub, record ID, title, revision and status |
+| Footer | Exported by, export date and time, page N of M |
+| Controlled page or item not released | "Not released" on every page |
+| Change order | Approvals and signatures with time and meaning |
+
+Every PDF export is recorded in the audit log.
+
 ## 8. Placeholders for later versions
 
 | Placeholder | Version | Location |
@@ -664,11 +925,5 @@ Initial expected files:
 | Effectivity | v3 | BOM line, change order |
 | Procedure recorded values | v3 | Procedure step |
 | Equipment links | v3 | Procedure tools and equipment |
-| Supplier records | v3 | COTS part, NCR |
-| Estimate, time logged, sprint, milestone | v2 | Work items |
-| Templates | v2 | Space |
-| Inline comments | v2 | Comment |
-| Company and account expiry | v2 | User |
-| Email notifications | v2 | User, notification |
-| Custom roles | v2 | Role |
-| Google sign-in | v2 | User |
+| Dashboard view for work items | Later | Work views |
+| Supplier record type (built on Company) | v3 | Company |
