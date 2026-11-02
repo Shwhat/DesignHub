@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../../components/Icon.svelte';
   import { get, post, patch, put } from '../../lib/api';
   import { session, can, toast, loadUsers, refreshMe } from '../../lib/state.svelte';
   import { navigate } from '../../lib/router.svelte';
@@ -174,7 +175,7 @@
     <div class="card table-wrap"><table class="data">
       <thead><tr><th>Permission</th>{#each roles as r}<th>{r.name}</th>{/each}</tr></thead>
       <tbody>
-        {#each perms as p}<tr><td>{p.Label}</td>{#each roles as r}<td style="text-align: center">{r.permissions.includes(p.Key) ? '✓' : ''}</td>{/each}</tr>{/each}
+        {#each perms as p}<tr><td>{p.Label}</td>{#each roles as r}<td style="text-align: center">{#if r.permissions.includes(p.Key)}<Icon name="check" size={14} />{/if}</td>{/each}</tr>{/each}
         <tr><td>Add or remove change order approvers</td>{#each roles as r}<td style="text-align: center"><input type="checkbox" checked={r.canManageApprovers} onchange={() => toggleApprovers(r)} aria-label="{r.name} manages approvers" /></td>{/each}</tr>
       </tbody>
     </table></div>
@@ -217,7 +218,7 @@
     <div class="card table-wrap"><table class="data">
       <thead><tr><th></th><th>Value</th><th>Active</th>{#if listKey === 'file_roles'}<th>Expected on</th>{/if}</tr></thead>
       <tbody bind:this={listBody}>
-        {#each values as v, i (v.value + i)}<tr><td class="drag" style="cursor: grab">⠿</td><td><input bind:value={v.value} aria-label="Value" /></td><td><input type="checkbox" bind:checked={v.active} aria-label="Active" /></td>
+        {#each values as v, i (v.value + i)}<tr><td class="drag"><Icon name="grip" /></td><td><input bind:value={v.value} aria-label="Value" /></td><td><input type="checkbox" bind:checked={v.active} aria-label="Active" /></td>
           {#if listKey === 'file_roles'}<td>{#each expectKeys as k}<label class="checkbox" style="display: inline-flex; margin-right: 0.5rem"><input type="checkbox" checked={(v.expectedOn || []).includes(k)} onchange={(e) => { const on = (e.target as HTMLInputElement).checked; v.expectedOn = on ? [...(v.expectedOn || []), k] : (v.expectedOn || []).filter((x: string) => x !== k); }} /> {k}</label>{/each}</td>{/if}</tr>{/each}
       </tbody>
     </table></div>

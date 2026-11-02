@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { untrack } from 'svelte';
   import { get, put, post, del } from '../lib/api';
   import { can, userName, spaceName, toast } from '../lib/state.svelte';
@@ -125,13 +126,13 @@
   {:else}
     <div class="card table-wrap">
       <table class="data">
-        <thead><tr>{#each cols as c}<th class="sortable" onclick={() => sortBy(c)}>{allColumns.find((x) => x.key === c)?.label}{sortKey === c ? (sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>{/each}</tr></thead>
+        <thead><tr>{#each cols as c}<th class="sortable" onclick={() => sortBy(c)}>{allColumns.find((x) => x.key === c)?.label}{#if sortKey === c}<Icon name={sortDir > 0 ? 'sortup' : 'sortdn'} size={14} />{/if}</th>{/each}</tr></thead>
         <tbody>
           {#each shown as r (r.id + r.revision + r.status)}
             <tr class="clickable" onclick={() => navigate('/items/' + encodeURIComponent(r.id) + (r.status === 'Superseded' ? '?rev=' + r.revision : ''))}>
               {#each cols as c}
                 <td>
-                  {#if c === 'id'}<span class="id">{r.id}</span>{#if r.locked} <span title="Locked">🔒</span>{/if}
+                  {#if c === 'id'}<span class="id">{r.id}</span>{#if r.locked} <span title="Locked"><Icon name="lock" size={12} /></span>{/if}
                   {:else if c === 'status'}<Status value={r.status} />{#if r.draft} <span class="pill">rev {r.draft} draft</span>{/if}
                   {:else}{cell(r, c)}{/if}
                 </td>
@@ -151,7 +152,7 @@
   <Modal title="Columns" onclose={() => (colDialog = false)}>
     {#each cols as c, i}
       <div class="row" style="margin-bottom: 0.3rem"><span style="flex: 1">{allColumns.find((x) => x.key === c)?.label}</span>
-        <button class="small" onclick={() => moveCol(i, -1)} aria-label="Up">↑</button><button class="small" onclick={() => moveCol(i, 1)} aria-label="Down">↓</button>
+        <button class="small" onclick={() => moveCol(i, -1)} aria-label="Up"><Icon name="up" size={14} /></button><button class="small" onclick={() => moveCol(i, 1)} aria-label="Down"><Icon name="dn" size={14} /></button>
         <button class="small" disabled={c === 'id'} onclick={() => (cols = cols.filter((x) => x !== c))}>Hide</button></div>
     {/each}
     <hr />

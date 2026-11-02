@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { untrack } from 'svelte';
   import { get, patch, post, put } from '../lib/api';
   import { session, setMe, toast, refreshMe } from '../lib/state.svelte';
@@ -73,7 +74,7 @@
     {:else if section === 'editing'}
       <div class="field"><label for="ed">Default editing mode</label><select id="ed" bind:value={p.editMode} onchange={() => save({ editMode: p.editMode })}><option value="visual">Visual</option><option value="split">Split</option><option value="source">Source</option><option value="preview">Preview toggle</option></select></div>
     {:else if section === 'home'}
-      {#each layout as s, i}<div class="row" style="margin-bottom: 0.4rem"><label class="checkbox" style="flex: 1"><input type="checkbox" bind:checked={s.on} /> {HOME_SECTIONS.find((h) => h.key === s.key)?.title}</label><button class="small" onclick={() => move(i, -1)}>↑</button><button class="small" onclick={() => move(i, 1)}>↓</button></div>{/each}
+      {#each layout as s, i}<div class="row" style="margin-bottom: 0.4rem"><label class="checkbox" style="flex: 1"><input type="checkbox" bind:checked={s.on} /> {HOME_SECTIONS.find((h) => h.key === s.key)?.title}</label><button class="small" aria-label="Move up" onclick={() => move(i, -1)}><Icon name="up" size={14} /></button><button class="small" aria-label="Move down" onclick={() => move(i, 1)}><Icon name="dn" size={14} /></button></div>{/each}
       <div class="row end"><button class="primary" onclick={() => save({ homeLayout: layout })}>Save</button></div>
     {:else if section === 'notifications'}
       {#each events as e}<label class="checkbox" style="margin-bottom: 0.4rem"><input type="checkbox" checked={notify[e] !== false} onchange={(x) => (notify[e] = (x.target as HTMLInputElement).checked)} /> {e}</label>{/each}

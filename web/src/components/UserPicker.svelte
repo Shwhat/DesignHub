@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { session } from '../lib/state.svelte';
   // value holds user ids (or usernames when byUsername is set).
   let { value = $bindable(), multiple = false, byUsername = false, filter, placeholder = 'Choose a person', id }:
@@ -15,7 +16,7 @@
 
 {#if multiple}
   <div>
-    {#each value as v}<span class="chip">{name(v)} <button aria-label="Remove" onclick={() => (value = value.filter((x: string) => x !== v))}>✕</button></span>{/each}
+    {#each value as v}<span class="chip">{name(v)} <button aria-label="Remove" onclick={() => (value = value.filter((x: string) => x !== v))}><Icon name="remove" size={14} /></button></span>{/each}
   </div>
   <select {id} onchange={add}>
     <option value="">{placeholder}</option>

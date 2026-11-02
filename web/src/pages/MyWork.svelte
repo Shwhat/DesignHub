@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { get, put } from '../lib/api';
   import { spaceName, onEvent } from '../lib/state.svelte';
   import { date, kindLabel } from '../lib/format';
@@ -42,7 +43,7 @@
     <select id="g" style="width: auto" bind:value={group} onchange={save}><option value="none">None</option><option value="type">Type</option><option value="space">Space</option></select>
   </div>
   {#each groups as [k, list] (k)}
-    {#if k}<div class="row lane-title">{label(k)} <span class="muted small">{list.length}</span><button class="small ghost" aria-label="Move group up" onclick={() => moveGroup(k, -1)}>↑</button><button class="small ghost" aria-label="Move group down" onclick={() => moveGroup(k, 1)}>↓</button></div>{/if}
+    {#if k}<div class="row lane-title">{label(k)} <span class="muted small">{list.length}</span><button class="small ghost" aria-label="Move group up" onclick={() => moveGroup(k, -1)}><Icon name="up" size={14} /></button><button class="small ghost" aria-label="Move group down" onclick={() => moveGroup(k, 1)}><Icon name="dn" size={14} /></button></div>{/if}
     <div class="card table-wrap" style="margin-bottom: 1rem">
       <table class="data">
         <thead><tr><th>ID</th><th>Title</th><th>Status</th><th class="hide-phone">Priority</th><th>Due</th><th class="hide-phone">Space</th></tr></thead>

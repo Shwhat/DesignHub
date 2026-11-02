@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { get, put, post, del } from '../lib/api';
   import { canIn, toast, onEvent, setSpace, spaceName, session } from '../lib/state.svelte';
   import { navigate, route } from '../lib/router.svelte';
@@ -69,7 +70,7 @@
   </div>
   <div class="card table-wrap">
     <table class="data">
-      <thead><tr>{#each cols as c}<th class="sortable" onclick={() => { if (sortKey === c) dir = -dir; else { sortKey = c; dir = 1; } }}>{allCols.find((x) => x.key === c)?.label}{sortKey === c ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>{/each}</tr></thead>
+      <thead><tr>{#each cols as c}<th class="sortable" onclick={() => { if (sortKey === c) dir = -dir; else { sortKey = c; dir = 1; } }}>{allCols.find((x) => x.key === c)?.label}{#if sortKey === c}<Icon name={dir > 0 ? 'sortup' : 'sortdn'} size={14} />{/if}</th>{/each}</tr></thead>
       <tbody>
         {#each shown as r (r.id)}
           <tr class="clickable" onclick={() => navigate('/work/' + r.id)}>{#each cols as c}<td>{#if c === 'id'}<span class="id">{r.id}</span>{:else if c === 'status'}<Status value={r.status} />{#if r.blocked} <span class="status Blocked">blocked</span>{/if}{:else if c === 'dueDate'}<span style={r.overdue ? 'color: var(--danger); font-weight: 600' : ''}>{cell(r, c)}</span>{:else}{cell(r, c)}{/if}</td>{/each}</tr>
@@ -80,7 +81,7 @@
 </div>
 {#if colDialog}
   <Modal title="Columns" onclose={() => (colDialog = false)}>
-    {#each cols as c, i}<div class="row" style="margin-bottom: 0.3rem"><span style="flex: 1">{allCols.find((x) => x.key === c)?.label}</span><button class="small" onclick={() => moveCol(i, -1)}>↑</button><button class="small" onclick={() => moveCol(i, 1)}>↓</button><button class="small" disabled={c === 'id'} onclick={() => (cols = cols.filter((x) => x !== c))}>Hide</button></div>{/each}
+    {#each cols as c, i}<div class="row" style="margin-bottom: 0.3rem"><span style="flex: 1">{allCols.find((x) => x.key === c)?.label}</span><button class="small" aria-label="Up" onclick={() => moveCol(i, -1)}><Icon name="up" size={14} /></button><button class="small" aria-label="Down" onclick={() => moveCol(i, 1)}><Icon name="dn" size={14} /></button><button class="small" disabled={c === 'id'} onclick={() => (cols = cols.filter((x) => x !== c))}>Hide</button></div>{/each}
     <hr />{#each allCols.filter((c) => !cols.includes(c.key)) as c}<button class="small" style="margin: 0 0.3rem 0.3rem 0" onclick={() => (cols = [...cols, c.key])}>Show {c.label}</button>{/each}
     {#snippet footer()}<button onclick={() => (cols = defCols)}>Reset</button><button class="primary" onclick={() => { colDialog = false; put('/api/prefs/' + prefKey, cols).catch(() => {}); }}>Save</button>{/snippet}
   </Modal>

@@ -3,6 +3,7 @@
   import { route, navigate } from '../lib/router.svelte';
   import { get, post } from '../lib/api';
   import Modal from './Modal.svelte';
+  import Icon from './Icon.svelte';
   import { onDestroy } from 'svelte';
 
   let tree: { home: string; pages: any[] } = $state({ home: '', pages: [] });
@@ -108,50 +109,50 @@
 
 <svelte:window onclick={outside} />
 <nav class="sidebar" class:open={session.sidebarOpen} aria-label="Main">
-  <a class="nav-item" class:active={active('/', true)} href="/" onclick={close}>Home</a>
-  <a class="nav-item" class:active={active('/my-work')} href="/my-work" onclick={close}>My Work</a>
+  <a class="nav-item" class:active={active('/', true)} href="/" onclick={close}><Icon name="home" />Home</a>
+  <a class="nav-item" class:active={active('/my-work')} href="/my-work" onclick={close}><Icon name="mywork" />My Work</a>
   {#if can('library.view')}
-    <a class="nav-item" class:active={active('/library') || active('/items')} href="/library" onclick={close}>Library</a>
-    <a class="nav-item" class:active={active('/change-orders') || active('/baselines')} href="/change-orders" onclick={close}>Change orders</a>
+    <a class="nav-item" class:active={active('/library') || active('/items')} href="/library" onclick={close}><Icon name="library" />Library</a>
+    <a class="nav-item" class:active={active('/change-orders') || active('/baselines')} href="/change-orders" onclick={close}><Icon name="co" />Change orders</a>
   {/if}
-  <a class="nav-item" class:active={active('/search')} href="/search" onclick={close}>Search</a>
-  <a class="nav-item" class:active={active('/notifications')} href="/notifications" onclick={close}>Notifications {#if session.unread}<span class="badge-count">{session.unread}</span>{/if}</a>
-  <a class="nav-item" class:active={active('/about')} href="/about" onclick={close}>About</a>
+  <a class="nav-item" class:active={active('/search')} href="/search" onclick={close}><Icon name="search" />Search</a>
+  <a class="nav-item" class:active={active('/notifications')} href="/notifications" onclick={close}><Icon name="bell" />Notifications {#if session.unread}<span class="badge-count">{session.unread}</span>{/if}</a>
+  <a class="nav-item" class:active={active('/about')} href="/about" onclick={close}><Icon name="about" />About</a>
 
   <div class="nav-section">Space</div>
   {#if spaces.length}
-    <select aria-label="Space" value={space} onchange={(e) => { setSpace((e.target as HTMLSelectElement).value); navigate('/spaces/' + (e.target as HTMLSelectElement).value); close(); }} style="margin: 0 0 0.5rem">
+    <select aria-label="Space" value={space} onchange={(e) => { setSpace((e.target as HTMLSelectElement).value); navigate('/spaces/' + (e.target as HTMLSelectElement).value); close(); }}>
       {#each spaces as s}<option value={s.id}>{s.name}</option>{/each}
     </select>
-    <a class="nav-item" class:active={active('/spaces/' + space, true)} href="/spaces/{space}" onclick={close}>Space home</a>
+    <a class="nav-item" class:active={active('/spaces/' + space, true)} href="/spaces/{space}" onclick={close}><Icon name="space" />Space home</a>
 
     <div class="nav-section">Work</div>
-    <a class="nav-item" class:active={active(`/spaces/${space}/board`)} href="/spaces/{space}/board" onclick={close}>Board</a>
-    <a class="nav-item" class:active={active(`/spaces/${space}/list`)} href="/spaces/{space}/list" onclick={close}>List</a>
-    <a class="nav-item" class:active={active(`/spaces/${space}/ncr-board`)} href="/spaces/{space}/ncr-board" onclick={close}>NCR Board</a>
-    <a class="nav-item" class:active={active(`/spaces/${space}/ncr-list`)} href="/spaces/{space}/ncr-list" onclick={close}>NCR List</a>
+    <a class="nav-item" class:active={active(`/spaces/${space}/board`)} href="/spaces/{space}/board" onclick={close}><Icon name="board" />Board</a>
+    <a class="nav-item" class:active={active(`/spaces/${space}/list`)} href="/spaces/{space}/list" onclick={close}><Icon name="list" />List</a>
+    <a class="nav-item" class:active={active(`/spaces/${space}/ncr-board`)} href="/spaces/{space}/ncr-board" onclick={close}><Icon name="ncr" />NCR Board</a>
+    <a class="nav-item" class:active={active(`/spaces/${space}/ncr-list`)} href="/spaces/{space}/ncr-list" onclick={close}><Icon name="list" />NCR List</a>
 
-    <div class="nav-section row" style="padding-right: 0.25rem">Pages <span class="spacer"></span>{#if editable}<button class="twisty" title="New page" aria-label="New page" onclick={() => newPage(tree.home)}>＋</button>{/if}</div>
+    <div class="nav-section row" style="padding-right: 6px">Pages <span class="spacer"></span>{#if editable}<button class="twisty" title="New page" aria-label="New page" onclick={() => newPage(tree.home)}><Icon name="plus" size={14} /></button>{/if}</div>
     {#snippet node(p: any, depth: number)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="tree-row" class:active={route.path === '/pages/' + p.id}
         class:drop-before={dropTarget.id === p.id && dropTarget.where === 'before'} class:drop-inside={dropTarget.id === p.id && dropTarget.where === 'inside'}
-        style="padding-left: {depth * 0.9}rem" draggable={editable && p.id !== tree.home}
+        style="padding-left: {4 + depth * 14}px" draggable={editable && p.id !== tree.home}
         ondragstart={() => (dragId = p.id)} ondragend={() => { dragId = ''; dropTarget = { id: '', where: '' }; }}
         ondragover={(e) => over(e, p)} ondrop={(e) => { e.preventDefault(); drop(p, dropTarget.where); }} oncontextmenu={(e) => ctx(e, p)}>
         {#if hasChildren(p.id)}
-          <button class="twisty" aria-label={open[p.id] ? 'Collapse' : 'Expand'} onclick={() => (open = { ...open, [p.id]: !open[p.id] })}>{open[p.id] ? '▼' : '▶'}</button>
-        {:else}<span style="width: 22px; display: inline-block"></span>{/if}
-        <a href="/pages/{p.id}" onclick={close} title={p.title}>{p.title}</a>
+          <button class="twisty" aria-label={open[p.id] ? 'Collapse' : 'Expand'} onclick={() => (open = { ...open, [p.id]: !open[p.id] })}><Icon name={open[p.id] ? 'down' : 'right'} size={14} /></button>
+        {:else}<span style="width: 20px; flex: none"></span>{/if}
+        <a href="/pages/{p.id}" onclick={close} title={p.title}><Icon name={p.id === tree.home ? 'space' : 'page'} size={14} /><span style="overflow: hidden; text-overflow: ellipsis">{p.title}</span></a>
         {#if editable}
           <div class="menu-wrap tree-menu">
-            <button class="twisty" aria-label="Page actions" onclick={() => (menuFor = menuFor === p.id ? '' : p.id)}>⋯</button>
+            <button class="twisty" aria-label="Page actions" aria-expanded={menuFor === p.id} onclick={() => (menuFor = menuFor === p.id ? '' : p.id)}><Icon name="more" size={14} /></button>
             {#if menuFor === p.id}
               <div class="menu">
-                <button onclick={() => newPage(p.id)}>New child page</button>
+                <button onclick={() => newPage(p.id)}><Icon name="plus" />New child page...</button>
                 {#if p.id !== tree.home}
-                  <button onclick={() => rename(p)}>Rename</button>
-                  <button onclick={() => { menuFor = ''; moveFor = p; moveParent = p.parent || tree.home; }}>Move</button>
+                  <button onclick={() => rename(p)}>Rename...</button>
+                  <button onclick={() => { menuFor = ''; moveFor = p; moveParent = p.parent || tree.home; }}>Move...</button>
                 {/if}
               </div>
             {/if}
@@ -164,12 +165,12 @@
     {/snippet}
     {#each tree.pages.filter((p) => p.id === tree.home) as h (h.id)}{@render node(h, 0)}{/each}
   {:else}
-    <div class="muted small" style="padding: 0 0.65rem">You are not a member of any space.</div>
+    <div class="muted small" style="padding: 0 10px">You are not a member of any space.</div>
   {/if}
   {#if can('library.view')}
     <div class="nav-section">Engineering</div>
-    <a class="nav-item" class:active={active('/traceability')} href="/traceability" onclick={close}>Traceability</a>
-    <a class="nav-item" class:active={active('/baselines')} href="/baselines" onclick={close}>Baselines</a>
+    <a class="nav-item" class:active={active('/traceability')} href="/traceability" onclick={close}><Icon name="trace" />Traceability</a>
+    <a class="nav-item" class:active={active('/baselines')} href="/baselines" onclick={close}><Icon name="baseline" />Baselines</a>
   {/if}
 </nav>
 

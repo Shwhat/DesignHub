@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import Sortable from 'sortablejs';
   import RecordPicker from './RecordPicker.svelte';
   import { get } from '../lib/api';
@@ -59,7 +60,7 @@
     <tbody bind:this={body}>
       {#each lines || [] as l, i (l.item + ':' + i)}
         <tr>
-          <td class="drag" style="cursor: grab" title="Drag to reorder">⠿</td>
+          <td class="drag" title="Drag to reorder"><Icon name="grip" /></td>
           <td><input type="number" style="width: 6ch" bind:value={l.find} aria-label="Find number" /></td>
           <td><span class="id">{l.item}</span> <span class="small muted">{titles[l.item] || ''}</span></td>
           <td class="num"><input type="number" step="any" min="0" style="width: 9ch" bind:value={l.qty} aria-label="Quantity" /></td>

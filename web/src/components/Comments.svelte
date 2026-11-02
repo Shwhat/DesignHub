@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import { get, post, patch } from '../lib/api';
   import { session, toast, onEvent, can } from '../lib/state.svelte';
   import { ago } from '../lib/format';
@@ -42,7 +43,7 @@
     <h3>Comments</h3>
     <span class="spacer"></span>
     <label class="checkbox small"><input type="checkbox" bind:checked={showResolved} /> Resolved</label>
-    <button class="ghost icon" aria-label="Close comments" onclick={() => (session.commentsOpen = false)}>✕</button>
+    <button class="ghost icon" aria-label="Close comments" onclick={() => (session.commentsOpen = false)}><Icon name="close" /></button>
   </div>
   <div style="flex: 1; overflow-y: auto">
     {#each top as c (c.id)}

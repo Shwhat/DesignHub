@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { get, post, patch, put, del } from '../lib/api';
   import { session, toast, onEvent, userName, spaceName } from '../lib/state.svelte';
   import { navigate, route, setQuery, recordPath } from '../lib/router.svelte';
@@ -89,7 +90,7 @@
 <div class="content" style="padding-bottom: {d.perms.decide ? '5rem' : '0'}">
   <div class="record-head">
     <div class="titles">
-      <div class="meta"><span class="id">{id}</span><Status value={d.co.state} /><span class="muted">{d.co.changeType}</span>{#if d.lock.length}<span class="pill">🔒</span>{/if}</div>
+      <div class="meta"><span class="id">{id}</span><Status value={d.co.state} /><span class="muted">{d.co.changeType}</span>{#if d.lock.length}<span class="pill" title="Locked to an access list"><Icon name="lock" size={12} /></span>{/if}</div>
       <h1>{d.co.title}</h1>
     </div>
     <div class="row">

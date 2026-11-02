@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '../components/Icon.svelte';
   import { get, put, post, del, ApiError } from '../lib/api';
   import { session, toast, userName, onEvent, can } from '../lib/state.svelte';
   import { navigate, route, setQuery, setLeaveGuard, recordPath } from '../lib/router.svelte';
@@ -159,7 +160,7 @@
         <Status value={v.status} />
         <span class="muted">{kindLabel(v.kind)}</span>
         {#if v.workCount}<a class="pill" href="?tab=links" onclick={(e) => { e.preventDefault(); setTab('links'); }} title="Linked work items">{v.workCount} work item{v.workCount > 1 ? 's' : ''}</a>{/if}
-        {#if v.lock.length}<span class="pill" title="Locked to an access list">🔒 {v.lock.length}</span>{/if}
+        {#if v.lock.length}<span class="pill" title="Locked to an access list"><Icon name="lock" size={12} /> {v.lock.length}</span>{/if}
       </div>
       <h1>{shown.title}</h1>
     </div>

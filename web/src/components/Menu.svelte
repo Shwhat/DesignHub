@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from './Icon.svelte';
   import type { Snippet } from 'svelte';
   let { label = 'Actions', left = false, children, cls = '' }: { label?: string; left?: boolean; children: Snippet; cls?: string } = $props();
   let open = $state(false);
@@ -10,7 +11,7 @@
 
 <svelte:window onclick={outside} />
 <div class="menu-wrap" bind:this={wrap}>
-  <button class={cls} aria-haspopup="menu" aria-expanded={open} onclick={() => (open = !open)}>{label} ▾</button>
+  <button class={cls} aria-haspopup="menu" aria-expanded={open} onclick={() => (open = !open)}>{label} <Icon name="caret" size={12} /></button>
   {#if open}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
