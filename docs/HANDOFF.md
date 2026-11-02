@@ -51,7 +51,7 @@ All documents and code are on `main`.
 | 6. Build v1 on branch `v1-build`, one pull request at the end | Complete (PR #2) |
 | 7. Devon merges PR #2 and installs on the VM | Complete |
 | 8. Devon tests with TEST-PLAN.md | In progress |
-| 9. Fix the bug list, one branch per fix or group of fixes | In progress. PR #4 merged. Bug 3 direction agreed. Bug 1 waits on Devon. |
+| 9. Fix the bug list, one branch per fix or group of fixes | PR #4 merged. Bug 3 in PR #8. Bugs 1 and 4 closed. |
 | 10. Google sign-in, pulled forward from v2 | Complete (PR #6) |
 | 11. In-app About guide | Complete (PR #7) |
 | 12. Restyle to match OpenSchem (bug 3) | Done on branch `restyle-openschem`, PR #8 open for review |
@@ -129,7 +129,6 @@ No `v1-test` issues have been logged yet.
 | Google Cloud OAuth client for each installation (see Google sign-in setup below) | Devon |
 | Mail server for email notifications (v2) | Devon |
 | Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
-| Answers to the open bug questions below | Devon |
 
 ## Bug list
 
@@ -137,16 +136,10 @@ Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from
 
 | # | Report | Finding | State |
 |---|---|---|---|
-| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Tree part resolved in the current working version. Open: what "a much more robust pages setup" means (question below) |
+| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Closed. Tree part resolved; the rest dropped by Devon 2026-11-01. |
 | 2 | Parts do not show under Library. The item count goes up. | Cause: `GET /api/prefs/{key}` returned `{"ok":true}` when the user had no saved preference, so Library used that object as its column list and drew no columns. The work List view had the same fault. | Fixed in PR #4. Devon to retest. |
 | 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. Direction agreed 2026-10-31: match OpenSchem's styling (program-design-guide.md) so the programs feel like one set: tokens, light and dark themes, typography, spacing, buttons, menus, dialogs, lists and icon style. Stay on Svelte and keep the current DesignHub layout; the OpenSchem ribbon, docking panels and plain-JavaScript structure are not adopted. | Done in PR #8: OpenSchem tokens and themes, system font, compact desktop sizing with touch-sized controls on phones, OpenSchem-style inline SVG icons (`web/src/lib/icons.ts`, `components/Icon.svelte`). Inter removed. Devon to review. |
 | 4 | "where" (message cut off) | Dropped by Devon 2026-10-31 | Closed |
-
-### Open questions for Devon
-
-| Bug | Question |
-|---|---|
-| 1 | What does "a much more robust pages setup" mean? Candidates: a New page button on the space home and page view, a parent page picker, templates, a full page list per space. |
 
 ### PR #4 detail
 
@@ -350,8 +343,7 @@ Done for PR #4 (2026-10-31):
 2. Devon reviews PR #9 (version 2 documents): the proposed defaults in the Version 2 section above and the CSV import list.
 3. After PR #9 is approved: build version 2 on `v2-build` from `main`, one pull request at the end. Email last.
 4. Devon decides the mail server.
-5. Bug 1: get the answer on "a much more robust pages setup". Templates (v2) cover part of it.
-6. Devon continues TEST-PLAN.md and the retest list above, and adds failures to the bug list or as GitHub issues with label `v1-test`.
+5. Devon continues TEST-PLAN.md and the retest list above, and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
 
