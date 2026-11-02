@@ -6,6 +6,7 @@
   const googleErrors: Record<string, string> = {
     google_not_allowed: 'That Google account is not allowed to use DesignHub. Sign in with your company account, or ask your administrator to add your address.',
     google_inactive: 'Your DesignHub account is disabled. Contact your administrator.',
+    account_expired: 'This account has expired. Contact your DesignHub administrator.',
     google_duplicate: 'More than one DesignHub account uses this email address. Contact your administrator.',
     google_cancelled: 'Google sign-in was cancelled.',
     google_expired: 'The sign-in request expired. Try again.',

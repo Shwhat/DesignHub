@@ -43,7 +43,7 @@ func (a *App) notifyQ(ctx context.Context, q querier, by *User, recipient, event
 	if by != nil && recipient == by.ID {
 		return
 	}
-	if !a.wantsEvent(ctx, q, recipient, event) || !a.recordVisibleTo(ctx, recipient, recordID) {
+	if !a.wantsEvent(ctx, q, recipient, event) || (recordID != "" && !a.recordVisibleTo(ctx, recipient, recordID)) {
 		return
 	}
 	var trig any
@@ -157,7 +157,7 @@ func (a *App) apiNotifications(w http.ResponseWriter, r *http.Request) error {
 		if err := rows.Scan(&n.ID, &n.Event, &n.RecordID, &n.RecordTitle, &n.RecordKind, &n.By, &n.Summary, &n.CreatedAt, &n.Read); err != nil {
 			return err
 		}
-		if vis(n.RecordID) {
+		if n.RecordID == "" || vis(n.RecordID) {
 			out = append(out, n)
 		}
 	}
@@ -208,7 +208,7 @@ func (a *App) apiMarkNotifications(w http.ResponseWriter, r *http.Request) error
 func (a *App) dueDateNotifications(ctx context.Context) {
 	rows, err := a.DB.Query(ctx, `SELECT w.id, w.title, w.assignee_id::text, w.due_date < current_date FROM work_items w
 		WHERE w.assignee_id IS NOT NULL AND w.due_date IS NOT NULL AND w.due_date <= current_date + 2
-		AND w.status NOT IN ('Done', 'Cancelled', 'Closed')`)
+		AND w.state_cat IN ('open', 'active')`)
 	if err != nil {
 		log.Printf("due dates: %v", err)
 		return

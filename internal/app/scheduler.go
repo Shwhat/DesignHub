@@ -41,6 +41,8 @@ func (a *App) RunScheduler(ctx context.Context) {
 			if now.Sub(lastDue) > time.Hour {
 				lastDue = now
 				a.dueDateNotifications(ctx)
+				a.expiryNotices(ctx)
+				a.milestoneChecks(ctx)
 				a.DB.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now() OR (NOT keep AND last_seen < now() - interval '1 day')`)
 			}
 		}

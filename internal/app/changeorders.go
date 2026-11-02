@@ -78,7 +78,7 @@ func (a *App) listCOs(ctx context.Context, u *User, filter, space string) ([]coL
 		if err := rows.Scan(&c.ID, &c.Title, &c.ChangeType, &c.State, &c.Priority, &c.Owner, &c.Space, &c.NeedDate, &c.Updated, &c.Items, &c.Awaiting); err != nil {
 			return nil, err
 		}
-		if visible(u, "change_order", "", locks[c.ID]) {
+		if visible(u, c.ID, "change_order", "", locks[c.ID]) {
 			out = append(out, c)
 		}
 	}
@@ -102,19 +102,19 @@ func (a *App) apiChangeOrders(w http.ResponseWriter, r *http.Request) error {
 // Create and edit
 
 type coInput struct {
-	Title             *string    `json:"title"`
-	ChangeType        *string    `json:"changeType"`
-	Reason            *string    `json:"reason"`
-	Description       *string    `json:"description"`
-	StockDisposition  *string    `json:"stockDisposition"`
-	NeedDate          *string    `json:"needDate"`
-	Priority          *string    `json:"priority"`
-	HomeSpace         *string    `json:"homeSpace"`
-	Owner             *string    `json:"owner"`
-	Labels            *[]string  `json:"labels"`
-	Items             []coItemIn `json:"items"`
-	Approvers         []string   `json:"approvers"`
-	Links             []string   `json:"links"` // NCRs or issues this change order fixes
+	Title            *string    `json:"title"`
+	ChangeType       *string    `json:"changeType"`
+	Reason           *string    `json:"reason"`
+	Description      *string    `json:"description"`
+	StockDisposition *string    `json:"stockDisposition"`
+	NeedDate         *string    `json:"needDate"`
+	Priority         *string    `json:"priority"`
+	HomeSpace        *string    `json:"homeSpace"`
+	Owner            *string    `json:"owner"`
+	Labels           *[]string  `json:"labels"`
+	Items            []coItemIn `json:"items"`
+	Approvers        []string   `json:"approvers"`
+	Links            []string   `json:"links"` // NCRs or issues this change order fixes
 }
 
 type coItemIn struct {
@@ -380,7 +380,7 @@ func (a *App) apiUpdateCO(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *App) coForUser(ctx context.Context, u *User, id string) (*coRecord, error) {
-	if !u.Can(PermLibView) || !a.canSeeLocked(ctx, u, id) {
+	if !u.Can(PermLibView) || u.Scope != "" || !a.canSeeLocked(ctx, u, id) {
 		return nil, errNotFound
 	}
 	c, err := a.loadCO(ctx, a.DB, id)
@@ -576,15 +576,15 @@ func (a *App) returnDraftToMain(ctx context.Context, u *User, c *coRecord, e *en
 // View, changes and validation
 
 type coItemRow struct {
-	Item     string `json:"item"`
-	Kind     string `json:"kind"`
-	Title    string `json:"title"`
-	Action   string `json:"action"`
-	FromRev  string `json:"fromRev"`
-	ToRev    string `json:"toRev"`
-	Status   string `json:"status"`
-	Hidden   bool   `json:"hidden,omitempty"`
-	Space    string `json:"space"`
+	Item    string `json:"item"`
+	Kind    string `json:"kind"`
+	Title   string `json:"title"`
+	Action  string `json:"action"`
+	FromRev string `json:"fromRev"`
+	ToRev   string `json:"toRev"`
+	Status  string `json:"status"`
+	Hidden  bool   `json:"hidden,omitempty"`
+	Space   string `json:"space"`
 }
 
 type approverRow struct {
@@ -1478,7 +1478,7 @@ func (a *App) apiCOHistory(w http.ResponseWriter, r *http.Request) error {
 
 func (a *App) apiBaselines(w http.ResponseWriter, r *http.Request) error {
 	u := userFrom(r)
-	if !u.Can(PermLibView) {
+	if !u.Can(PermLibView) || u.Scope != "" {
 		return errForbidden
 	}
 	rows, err := a.DB.Query(r.Context(), `SELECT c.id, c.title, c.baseline, c.released_at, us.display_name FROM change_orders c JOIN users us ON us.id = c.released_by
@@ -1510,7 +1510,7 @@ func (a *App) apiBaselines(w http.ResponseWriter, r *http.Request) error {
 func (a *App) apiBaseline(w http.ResponseWriter, r *http.Request) error {
 	u := userFrom(r)
 	ctx := r.Context()
-	if !u.Can(PermLibView) {
+	if !u.Can(PermLibView) || u.Scope != "" {
 		return errForbidden
 	}
 	name := "baseline/" + r.PathValue("co")

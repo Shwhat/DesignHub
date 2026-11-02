@@ -138,7 +138,7 @@ func (a *App) apiItemValidation(w http.ResponseWriter, r *http.Request) error {
 func (a *App) apiLibraryValidation(w http.ResponseWriter, r *http.Request) error {
 	u := userFrom(r)
 	ctx := r.Context()
-	if !u.Can(PermLibView) {
+	if !u.Can(PermLibView) || u.Scope != "" {
 		return errForbidden
 	}
 	vis, err := a.visibility(ctx, u)
@@ -164,14 +164,14 @@ func (a *App) apiLibraryValidation(w http.ResponseWriter, r *http.Request) error
 // Traceability
 
 type traceRow struct {
-	ID           string     `json:"id"`
-	Title        string     `json:"title"`
-	Status       string     `json:"status"`
-	Priority     string     `json:"priority"`
-	SatisfiedBy  []traceRef `json:"satisfiedBy"`
-	VerifiedBy   []traceRef `json:"verifiedBy"`
-	DerivedFrom  []string   `json:"derivedFrom"`
-	Coverage     string     `json:"coverage"` // Complete, No test, No design, No design and no test
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Status      string     `json:"status"`
+	Priority    string     `json:"priority"`
+	SatisfiedBy []traceRef `json:"satisfiedBy"`
+	VerifiedBy  []traceRef `json:"verifiedBy"`
+	DerivedFrom []string   `json:"derivedFrom"`
+	Coverage    string     `json:"coverage"` // Complete, No test, No design, No design and no test
 }
 
 type traceRef struct {
@@ -233,7 +233,7 @@ func (a *App) traceability(vis func(string) bool, ids map[string]bool) []traceRo
 func (a *App) apiTraceability(w http.ResponseWriter, r *http.Request) error {
 	u := userFrom(r)
 	ctx := r.Context()
-	if !u.Can(PermLibView) {
+	if !u.Can(PermLibView) || u.Scope != "" {
 		return errForbidden
 	}
 	vis, err := a.visibility(ctx, u)

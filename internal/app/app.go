@@ -73,6 +73,12 @@ func New(ctx context.Context, cfg *config.Config, pool *pgxpool.Pool, web fs.FS)
 	if err := a.loadSettings(ctx); err != nil {
 		return nil, fmt.Errorf("settings: %w", err)
 	}
+	if err := a.loadWorkflows(ctx); err != nil {
+		return nil, fmt.Errorf("workflows: %w", err)
+	}
+	if err := a.ensureTemplates(ctx); err != nil {
+		return nil, fmt.Errorf("templates: %w", err)
+	}
 	if err := a.RebuildIndex(ctx); err != nil {
 		return nil, fmt.Errorf("index: %w", err)
 	}

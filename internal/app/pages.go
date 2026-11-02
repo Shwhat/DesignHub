@@ -112,7 +112,7 @@ func (a *App) apiPageTree(w http.ResponseWriter, r *http.Request) error {
 	a.DB.QueryRow(ctx, `SELECT home_page_id FROM spaces WHERE id = $1`, space).Scan(&home)
 	out := []treeNode{}
 	for _, p := range a.pagesIn(space) {
-		if !visible(u, "page", space, locks[p.ID]) {
+		if !visible(u, p.ID, "page", space, locks[p.ID]) {
 			continue
 		}
 		out = append(out, treeNode{ID: p.ID, Title: p.Title, Parent: p.Parent, Sort: p.Sort, PageType: p.PageType, Status: p.Status,
@@ -132,12 +132,12 @@ func (a *App) apiPageTree(w http.ResponseWriter, r *http.Request) error {
 
 type pageView struct {
 	itemView
-	PagePerms   pagePerms   `json:"pagePerms"`
-	Controlled  bool        `json:"controlled"`
-	Breadcrumbs []treeNode  `json:"breadcrumbs"`
-	Children    []treeNode  `json:"children"`
-	SpaceName   string      `json:"spaceName"`
-	IsHome      bool        `json:"isHome"`
+	PagePerms   pagePerms  `json:"pagePerms"`
+	Controlled  bool       `json:"controlled"`
+	Breadcrumbs []treeNode `json:"breadcrumbs"`
+	Children    []treeNode `json:"children"`
+	SpaceName   string     `json:"spaceName"`
+	IsHome      bool       `json:"isHome"`
 }
 
 func (a *App) apiPage(w http.ResponseWriter, r *http.Request) error {
@@ -209,12 +209,29 @@ func (a *App) apiCreatePage(w http.ResponseWriter, r *http.Request) error {
 		PageType   string `json:"pageType"`
 		Controlled string `json:"controlled"`
 		Body       string `json:"body"`
+		Template   string `json:"template"`
 	}
 	if err := decode(r, &in); err != nil {
 		return err
 	}
 	if !u.CanIn(in.Space, PermSpaceEdit) {
 		return errForbidden
+	}
+	if in.Template != "" {
+		// A template sets the page type and fills its placeholders once.
+		t, err := a.templateFor(ctx, in.Template, in.Space)
+		if err != nil {
+			return err
+		}
+		var spaceName string
+		a.DB.QueryRow(ctx, `SELECT name FROM spaces WHERE id = $1`, in.Space).Scan(&spaceName)
+		title := strings.TrimSpace(in.Title)
+		if title == "" && t.TitlePattern != "" {
+			title = fillPlaceholders(t.TitlePattern, u, spaceName, "")
+		}
+		in.Title = title
+		in.PageType = t.PageType
+		in.Body = fillPlaceholders(t.Body, u, spaceName, title)
 	}
 	var archived bool
 	if err := a.DB.QueryRow(ctx, `SELECT archived FROM spaces WHERE id = $1`, in.Space).Scan(&archived); err != nil {
@@ -245,7 +262,7 @@ func (a *App) apiCreatePage(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	p := &model.Item{Type: model.TypePage, Title: strings.TrimSpace(in.Title), Owner: u.Username, CreatedBy: u.Username, Space: in.Space,
-		Parent: in.Parent, Sort: maxSort + 10, PageType: in.PageType, Controlled: in.Controlled, Body: in.Body}
+		Parent: in.Parent, Sort: maxSort + 10, PageType: in.PageType, Controlled: in.Controlled, Body: in.Body, Template: in.Template}
 	if a.isControlled(ctx, p) {
 		p.Status = model.StatusDraft
 	}

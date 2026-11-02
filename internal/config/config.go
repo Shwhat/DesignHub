@@ -23,6 +23,7 @@ type Config struct {
 	FilesDir     string // attachment file store
 	BackupsDir   string // backup output
 	SecureCookie string // auto, always or never
+	PDFURL       string // pdf service (headless Chromium); empty turns PDF export off
 	Version      string
 }
 
@@ -42,6 +43,7 @@ func Load(version string) (*Config, error) {
 		FilesDir:     env("DESIGNHUB_FILES", "/data/files"),
 		BackupsDir:   env("DESIGNHUB_BACKUPS", "/backups"),
 		SecureCookie: env("DESIGNHUB_SECURE_COOKIE", "auto"),
+		PDFURL:       env("DESIGNHUB_PDF_URL", "http://pdf:3000"),
 		Version:      version,
 	}
 	switch c.SecureCookie {

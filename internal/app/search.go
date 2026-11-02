@@ -174,7 +174,7 @@ func (a *App) apiHome(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	out := map[string]any{}
-	myWork, err := a.queryWork(ctx, u, `w.assignee_id = $1 AND w.status NOT IN ('Done', 'Cancelled', 'Closed')`, u.ID)
+	myWork, err := a.queryWork(ctx, u, `w.assignee_id = $1 AND w.state_cat IN ('open', 'active')`, u.ID)
 	if err != nil {
 		return err
 	}

@@ -16,37 +16,12 @@ import (
 
 var workPrefix = map[string]string{"task": "TSK", "issue": "ISS", "action": "ACT", "epic": "EPC", "ncr": "NCR"}
 
-// Default workflow for tasks, issues, actions and epics.
-var defaultFlow = map[string][]string{
-	"Open":        {"In Progress", "Done", "Blocked", "Cancelled"},
-	"In Progress": {"Open", "In Review", "Done", "Blocked", "Cancelled"},
-	"In Review":   {"In Progress", "Done", "Blocked", "Cancelled"},
-	"Blocked":     {"Open", "In Progress", "Cancelled"},
-	"Done":        {"Open"},
-	"Cancelled":   {"Open"},
+// closed reports whether a status is in a Done or Cancelled state of the
+// type's workflow.
+func (a *App) closed(typ, status string) bool {
+	c := a.workflow(typ).category(status)
+	return c == CatDone || c == CatCancelled
 }
-
-var defaultStates = []string{"Open", "In Progress", "In Review", "Blocked", "Done", "Cancelled"}
-
-// Nonconformance workflow.
-var ncrFlow = map[string][]string{
-	"Reported":          {"Dispositioned"},
-	"Dispositioned":     {"Corrective Action", "Reported"},
-	"Corrective Action": {"Verified", "Dispositioned"},
-	"Verified":          {"Closed", "Corrective Action"},
-	"Closed":            {},
-}
-
-var ncrStates = []string{"Reported", "Dispositioned", "Corrective Action", "Verified", "Closed"}
-
-func flowFor(typ string) map[string][]string {
-	if typ == "ncr" {
-		return ncrFlow
-	}
-	return defaultFlow
-}
-
-func closedState(s string) bool { return s == "Done" || s == "Cancelled" || s == "Closed" }
 
 // WorkItem is a task, issue, action, epic or nonconformance.
 type WorkItem struct {
@@ -71,18 +46,25 @@ type WorkItem struct {
 	UpdatedAt   time.Time       `json:"updatedAt"`
 	Version     int             `json:"version"`
 	Raw         json.RawMessage `json:"-"`
+	Estimate    *float64        `json:"estimate"`
+	Logged      float64         `json:"logged"`
+	Sprint      string          `json:"sprint"`
+	Milestone   string          `json:"milestone"`
+	Category    string          `json:"category"`
 }
 
 const workSelect = `SELECT w.id, w.type, w.space_id, w.title, w.description, w.status, w.priority, w.assignee_id::text, COALESCE(a.display_name, ''),
 	w.reporter_id::text, COALESCE(rp.display_name, ''), cb.display_name, to_char(w.due_date, 'YYYY-MM-DD'), w.epic_id, w.labels, w.fields, w.attachments,
-	w.created_at, w.updated_at, w.version
+	w.created_at, w.updated_at, w.version, w.estimate::float8, (SELECT COALESCE(sum(t.hours), 0) FROM time_entries t WHERE t.item_id = w.id)::float8,
+	w.sprint_id, w.milestone_id, w.state_cat
 	FROM work_items w LEFT JOIN users a ON a.id = w.assignee_id LEFT JOIN users rp ON rp.id = w.reporter_id JOIN users cb ON cb.id = w.created_by`
 
 func scanWork(row pgx.Row) (*WorkItem, error) {
 	w := &WorkItem{}
 	var fields, att []byte
 	err := row.Scan(&w.ID, &w.Type, &w.Space, &w.Title, &w.Description, &w.Status, &w.Priority, &w.AssigneeID, &w.Assignee,
-		&w.ReporterID, &w.Reporter, &w.CreatedBy, &w.DueDate, &w.Epic, &w.Labels, &fields, &att, &w.CreatedAt, &w.UpdatedAt, &w.Version)
+		&w.ReporterID, &w.Reporter, &w.CreatedBy, &w.DueDate, &w.Epic, &w.Labels, &fields, &att, &w.CreatedAt, &w.UpdatedAt, &w.Version,
+		&w.Estimate, &w.Logged, &w.Sprint, &w.Milestone, &w.Category)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +87,7 @@ func (a *App) workForUser(ctx context.Context, u *User, id string) (*WorkItem, e
 		return nil, errNotFound
 	}
 	lock, _ := a.lockOf(ctx, a.DB, id)
-	if !visible(u, w.Type, w.Space, lock) {
+	if !visible(u, w.ID, w.Type, w.Space, lock) {
 		return nil, errNotFound
 	}
 	return w, nil
@@ -128,8 +110,13 @@ func (a *App) indexWork(ctx context.Context, q querier, w *WorkItem) error {
 		return err
 	}
 	// Found-on and epic membership are fields; keep the link graph in step.
-	if _, err := q.Exec(ctx, `DELETE FROM links WHERE src = $1 AND origin = 'db' AND type IN ('found on', 'in epic')`, w.ID); err != nil {
+	if _, err := q.Exec(ctx, `DELETE FROM links WHERE src = $1 AND origin = 'db' AND type IN ('found on', 'in epic', 'supplier')`, w.ID); err != nil {
 		return err
+	}
+	if s, _ := w.Fields["supplier"].(string); s != "" {
+		if _, err := q.Exec(ctx, `INSERT INTO links (src, type, dst, origin) VALUES ($1, 'supplier', $2, 'db') ON CONFLICT DO NOTHING`, w.ID, s); err != nil {
+			return err
+		}
 	}
 	if f, _ := w.Fields["found_on"].(string); f != "" {
 		rev, _ := w.Fields["found_on_rev"].(string)
@@ -149,30 +136,46 @@ func (a *App) indexWork(ctx context.Context, q querier, w *WorkItem) error {
 // Lists
 
 type workRow struct {
-	ID       string   `json:"id"`
-	Type     string   `json:"type"`
-	Space    string   `json:"space"`
-	Title    string   `json:"title"`
-	Status   string   `json:"status"`
-	Priority string   `json:"priority"`
-	Assignee string   `json:"assignee"`
-	AssigneeID *string `json:"assigneeId"`
-	DueDate  *string  `json:"dueDate"`
-	Epic     string   `json:"epic"`
-	Labels   []string `json:"labels"`
-	Overdue  bool     `json:"overdue"`
-	Updated  time.Time `json:"updated"`
-	FoundOn  string   `json:"foundOn,omitempty"`
-	Severity string   `json:"severity,omitempty"`
-	Blocked  bool     `json:"blocked,omitempty"`
+	ID         string    `json:"id"`
+	Type       string    `json:"type"`
+	Space      string    `json:"space"`
+	Title      string    `json:"title"`
+	Status     string    `json:"status"`
+	Priority   string    `json:"priority"`
+	Assignee   string    `json:"assignee"`
+	AssigneeID *string   `json:"assigneeId"`
+	DueDate    *string   `json:"dueDate"`
+	Epic       string    `json:"epic"`
+	Labels     []string  `json:"labels"`
+	Overdue    bool      `json:"overdue"`
+	Updated    time.Time `json:"updated"`
+	FoundOn    string    `json:"foundOn,omitempty"`
+	Severity   string    `json:"severity,omitempty"`
+	Blocked    bool      `json:"blocked,omitempty"`
+	Estimate   *float64  `json:"estimate"`
+	Logged     float64   `json:"logged"`
+	Remaining  *float64  `json:"remaining"`
+	Sprint     string    `json:"sprint"`
+	Milestone  string    `json:"milestone"`
+	Category   string    `json:"category"`
+	Supplier   string    `json:"supplier,omitempty"`
 }
 
 func toRow(w *WorkItem, today string) workRow {
 	r := workRow{ID: w.ID, Type: w.Type, Space: w.Space, Title: w.Title, Status: w.Status, Priority: w.Priority, Assignee: w.Assignee,
-		AssigneeID: w.AssigneeID, DueDate: w.DueDate, Epic: w.Epic, Labels: nz(w.Labels), Updated: w.UpdatedAt}
-	if w.DueDate != nil && *w.DueDate < today && !closedState(w.Status) {
+		AssigneeID: w.AssigneeID, DueDate: w.DueDate, Epic: w.Epic, Labels: nz(w.Labels), Updated: w.UpdatedAt,
+		Estimate: w.Estimate, Logged: w.Logged, Sprint: w.Sprint, Milestone: w.Milestone, Category: w.Category}
+	if w.DueDate != nil && *w.DueDate < today && (w.Category == CatOpen || w.Category == CatActive) {
 		r.Overdue = true
 	}
+	if w.Estimate != nil {
+		rem := *w.Estimate - w.Logged
+		if rem < 0 {
+			rem = 0
+		}
+		r.Remaining = &rem
+	}
+	r.Supplier, _ = w.Fields["supplier"].(string)
 	r.FoundOn, _ = w.Fields["found_on"].(string)
 	r.Severity, _ = w.Fields["severity"].(string)
 	return r
@@ -189,7 +192,7 @@ func (a *App) queryWork(ctx context.Context, u *User, where string, args ...any)
 		return nil, err
 	}
 	blocked := map[string]bool{}
-	br, err := a.DB.Query(ctx, `SELECT l.dst FROM links l JOIN work_items s ON s.id = l.src WHERE l.type = 'blocks' AND s.status NOT IN ('Done', 'Cancelled', 'Closed')`)
+	br, err := a.DB.Query(ctx, `SELECT l.dst FROM links l JOIN work_items s ON s.id = l.src WHERE l.type = 'blocks' AND s.state_cat IN ('open', 'active')`)
 	if err == nil {
 		for br.Next() {
 			var d string
@@ -206,7 +209,7 @@ func (a *App) queryWork(ctx context.Context, u *User, where string, args ...any)
 		if err != nil {
 			return nil, err
 		}
-		if !visible(u, w.Type, w.Space, locks[w.ID]) {
+		if !visible(u, w.ID, w.Type, w.Space, locks[w.ID]) {
 			continue
 		}
 		r := toRow(w, today)
@@ -231,7 +234,7 @@ func (a *App) apiSpaceWork(w http.ResponseWriter, r *http.Request) error {
 		where += fmt.Sprintf(` AND w.type = ANY($%d)`, len(args))
 	}
 	if q.Get("open") == "1" {
-		where += ` AND w.status NOT IN ('Done', 'Cancelled', 'Closed')`
+		where += ` AND w.state_cat IN ('open', 'active')`
 	}
 	rows, err := a.queryWork(r.Context(), u, where, args...)
 	if err != nil {
@@ -255,7 +258,7 @@ func (a *App) apiWorkQuery(w http.ResponseWriter, r *http.Request) error {
 		where += fmt.Sprintf(` AND w.type = ANY($%d)`, len(args))
 	}
 	if q.Get("open") != "0" {
-		where += ` AND w.status NOT IN ('Done', 'Cancelled', 'Closed')`
+		where += ` AND w.state_cat IN ('open', 'active')`
 	}
 	if item := q.Get("item"); item != "" {
 		args = append(args, item)
@@ -274,7 +277,7 @@ func (a *App) apiWorkQuery(w http.ResponseWriter, r *http.Request) error {
 
 func (a *App) apiMyWork(w http.ResponseWriter, r *http.Request) error {
 	u := userFrom(r)
-	rows, err := a.queryWork(r.Context(), u, `w.assignee_id = $1 AND w.status NOT IN ('Done', 'Cancelled', 'Closed')`, u.ID)
+	rows, err := a.queryWork(r.Context(), u, `w.assignee_id = $1 AND w.state_cat IN ('open', 'active')`, u.ID)
 	if err != nil {
 		return err
 	}
@@ -325,6 +328,9 @@ type workInput struct {
 	Attachments *[]model.File   `json:"attachments"`
 	Links       []model.Link    `json:"links"`
 	Version     int             `json:"version"`
+	Estimate    json.RawMessage `json:"estimate"` // number, or null to clear
+	Sprint      *string         `json:"sprint"`
+	Milestone   *string         `json:"milestone"`
 }
 
 // Fields allowed per type, with whether each is free text.
@@ -333,7 +339,8 @@ var workFields = map[string][]string{
 	"action": {"source"},
 	"epic":   {"start_date", "target_date"},
 	"ncr": {"found_on", "found_on_rev", "serial", "quantity", "where_found", "manufacturer", "po", "requirement_not_met", "severity",
-		"containment", "disposition", "disposition_notes", "root_cause", "corrective_action", "verification", "requires_design_change", "disposition_approvers"},
+		"containment", "disposition", "disposition_notes", "root_cause", "corrective_action", "verification", "requires_design_change", "disposition_approvers",
+		"supplier"},
 }
 
 var ncrDispositions = []string{"", "Use as is", "Rework", "Repair", "Scrap", "Return to vendor"}
@@ -369,10 +376,8 @@ func (a *App) CreateWork(ctx context.Context, u *User, ip string, in workInput) 
 	if archived {
 		return "", badRequest("This space is archived.")
 	}
-	wi := &WorkItem{Type: in.Type, Space: in.Space, Status: "Open", Priority: "Normal", Fields: map[string]any{}, Labels: []string{}, Attachments: []model.File{}}
-	if in.Type == "ncr" {
-		wi.Status = "Reported"
-	}
+	wf := a.workflow(in.Type)
+	wi := &WorkItem{Type: in.Type, Space: in.Space, Status: wf.Initial, Category: wf.category(wf.Initial), Priority: "Normal", Fields: map[string]any{}, Labels: []string{}, Attachments: []model.File{}}
 	rep := u.ID
 	wi.ReporterID = &rep
 	if err := a.applyWorkInput(ctx, wi, &in, true); err != nil {
@@ -393,9 +398,11 @@ func (a *App) CreateWork(ctx context.Context, u *User, ip string, in workInput) 
 		if wi.DueDate != nil {
 			due = *wi.DueDate
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO work_items (id, type, space_id, title, description, status, priority, assignee_id, reporter_id, created_by, due_date, epic_id, labels, fields, attachments)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-			id, wi.Type, wi.Space, wi.Title, wi.Description, wi.Status, wi.Priority, wi.AssigneeID, wi.ReporterID, u.ID, due, wi.Epic, nz(wi.Labels), fields, att); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO work_items (id, type, space_id, title, description, status, priority, assignee_id, reporter_id, created_by, due_date, epic_id, labels, fields, attachments,
+			estimate, sprint_id, milestone_id, state_cat)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+			id, wi.Type, wi.Space, wi.Title, wi.Description, wi.Status, wi.Priority, wi.AssigneeID, wi.ReporterID, u.ID, due, wi.Epic, nz(wi.Labels), fields, att,
+			wi.Estimate, wi.Sprint, wi.Milestone, wi.Category); err != nil {
 			return err
 		}
 		for _, l := range in.Links {
@@ -490,6 +497,41 @@ func (a *App) applyWorkInput(ctx context.Context, wi *WorkItem, in *workInput, c
 	if in.Labels != nil {
 		wi.Labels = cleanLabels(*in.Labels)
 	}
+	if len(in.Estimate) > 0 {
+		if string(in.Estimate) == "null" {
+			wi.Estimate = nil
+		} else {
+			var h float64
+			if err := json.Unmarshal(in.Estimate, &h); err != nil || h < 0 || h > 10000 || h*4 != float64(int(h*4)) {
+				return badRequest("Estimate must be hours in quarter-hour steps.")
+			}
+			wi.Estimate = &h
+		}
+	}
+	if in.Sprint != nil {
+		if *in.Sprint != "" {
+			if wi.Type == "epic" {
+				return badRequest("Epics are not planned into sprints.")
+			}
+			var space, state string
+			if err := a.DB.QueryRow(ctx, `SELECT space_id, state FROM sprints WHERE id = $1`, *in.Sprint).Scan(&space, &state); err != nil || space != wi.Space {
+				return badRequest("Unknown sprint in this space.")
+			}
+			if state == "Closed" {
+				return badRequest("That sprint is closed.")
+			}
+		}
+		wi.Sprint = *in.Sprint
+	}
+	if in.Milestone != nil {
+		if *in.Milestone != "" {
+			var space string
+			if err := a.DB.QueryRow(ctx, `SELECT space_id FROM milestones WHERE id = $1`, *in.Milestone).Scan(&space); err != nil || space != wi.Space {
+				return badRequest("Unknown milestone in this space.")
+			}
+		}
+		wi.Milestone = *in.Milestone
+	}
 	if in.Attachments != nil {
 		for _, f := range *in.Attachments {
 			var n int
@@ -522,6 +564,15 @@ func (a *App) applyWorkInput(ctx context.Context, wi *WorkItem, in *workInput, c
 		}
 		if s := str("disposition"); !contains(ncrDispositions, s) {
 			return badRequest("Unknown disposition.")
+		}
+		if s := str("supplier"); s != "" {
+			var active bool
+			if err := a.DB.QueryRow(ctx, `SELECT active FROM companies WHERE id = $1`, s).Scan(&active); err != nil {
+				return badRequest("Unknown supplier.")
+			}
+			if !active && in.Fields["supplier"] != nil {
+				return badRequest("That company is inactive.")
+			}
 		}
 		if f := str("found_on"); f != "" {
 			e := cache.get(f)
@@ -577,11 +628,18 @@ func checkWorkRequired(wi *WorkItem) error {
 	return nil
 }
 
-// ncrStateRequirement checks the fields needed to enter an NCR state.
+// ncrStateRequirement applies the fixed NCR rules (DATA-MODEL.md 4.7): the
+// disposition state needs a disposition with every approver signed, and a
+// Done state needs a linked change order when a design change is required.
+// Required fields per state are checked by missingFor.
 func (a *App) ncrStateRequirement(ctx context.Context, q querier, wi *WorkItem, state string) error {
 	str := func(k string) string { s, _ := wi.Fields[k].(string); return strings.TrimSpace(s) }
-	switch state {
-	case "Dispositioned":
+	wf := a.workflow("ncr")
+	st := wf.state(state)
+	if st == nil {
+		return nil
+	}
+	if st.Rule == "disposition" {
 		if str("disposition") == "" {
 			return badRequest("Choose a disposition first.")
 		}
@@ -597,14 +655,8 @@ func (a *App) ncrStateRequirement(ctx context.Context, q querier, wi *WorkItem, 
 				return badRequest("Every disposition approver must sign first.")
 			}
 		}
-	case "Verified":
-		if str("root_cause") == "" || str("corrective_action") == "" {
-			return badRequest("Root cause and corrective action are required.")
-		}
-	case "Closed":
-		if str("verification") == "" {
-			return badRequest("Verification of effectiveness is required.")
-		}
+	}
+	if st.Category == CatDone {
 		if b, _ := wi.Fields["requires_design_change"].(bool); b {
 			var n int
 			q.QueryRow(ctx, `SELECT count(*) FROM links WHERE src = $1 AND type = 'fixed by'`, wi.ID).Scan(&n)
@@ -645,7 +697,7 @@ func (a *App) apiUpdateWork(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	// NCR fields of later stages may not be edited once the stage closed.
-	if wi.Type == "ncr" && wi.Status == "Closed" {
+	if wi.Type == "ncr" && a.workflow("ncr").category(wi.Status) == CatDone {
 		return badRequest("Closed nonconformances cannot be changed.")
 	}
 	changes := map[string]any{}
@@ -663,6 +715,9 @@ func (a *App) apiUpdateWork(w http.ResponseWriter, r *http.Request) error {
 	cmp("dueDate", before.DueDate, wi.DueDate)
 	cmp("epic", before.Epic, wi.Epic)
 	cmp("labels", before.Labels, wi.Labels)
+	cmp("estimate", before.Estimate, wi.Estimate)
+	cmp("sprint", before.Sprint, wi.Sprint)
+	cmp("milestone", before.Milestone, wi.Milestone)
 	for k := range wi.Fields {
 		cmp(k, beforeFields[k], wi.Fields[k])
 	}
@@ -677,8 +732,10 @@ func (a *App) apiUpdateWork(w http.ResponseWriter, r *http.Request) error {
 	}
 	err = a.tx(ctx, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE work_items SET title = $2, description = $3, priority = $4, assignee_id = $5, reporter_id = $6, due_date = $7, epic_id = $8,
-			labels = $9, fields = $10, attachments = $11, updated_at = now(), version = version + 1 WHERE id = $1 AND version = $12`,
-			wi.ID, wi.Title, wi.Description, wi.Priority, wi.AssigneeID, wi.ReporterID, due, wi.Epic, nz(wi.Labels), fields, att, before.Version)
+			labels = $9, fields = $10, attachments = $11, estimate = $13, sprint_id = $14, milestone_id = $15, updated_at = now(), version = version + 1
+			WHERE id = $1 AND version = $12`,
+			wi.ID, wi.Title, wi.Description, wi.Priority, wi.AssigneeID, wi.ReporterID, due, wi.Epic, nz(wi.Labels), fields, att, before.Version,
+			wi.Estimate, wi.Sprint, wi.Milestone)
 		if err != nil {
 			return err
 		}
@@ -798,6 +855,9 @@ func (a *App) apiWorkStatus(w http.ResponseWriter, r *http.Request) error {
 	if err := decode(r, &in); err != nil {
 		return err
 	}
+	if in.Status != wi.Status && !contains(a.allowedNext(u, wi), in.Status) {
+		return badRequest("You cannot move %s from %s to %s.", wi.ID, wi.Status, in.Status)
+	}
 	if err := a.setWorkStatus(ctx, u, clientIP(r), wi, in.Status); err != nil {
 		return err
 	}
@@ -808,8 +868,12 @@ func (a *App) setWorkStatus(ctx context.Context, u *User, ip string, wi *WorkIte
 	if status == wi.Status {
 		return nil
 	}
-	if !contains(flowFor(wi.Type)[wi.Status], status) {
-		return badRequest("%s cannot move from %s to %s.", wi.ID, wi.Status, status)
+	wf := a.workflow(wi.Type)
+	if wf.state(status) == nil {
+		return badRequest("Unknown state %s.", status)
+	}
+	if miss := a.missingFor(wi, status); len(miss) > 0 {
+		return &Error{Status: http.StatusBadRequest, Code: "required", Message: fmt.Sprintf("%s required to move to %s.", labelList(miss), status), Data: miss}
 	}
 	err := a.tx(ctx, func(tx pgx.Tx) error {
 		if wi.Type == "ncr" {
@@ -817,7 +881,8 @@ func (a *App) setWorkStatus(ctx context.Context, u *User, ip string, wi *WorkIte
 				return err
 			}
 		}
-		tag, err := tx.Exec(ctx, `UPDATE work_items SET status = $2, updated_at = now(), version = version + 1 WHERE id = $1 AND status = $3`, wi.ID, status, wi.Status)
+		tag, err := tx.Exec(ctx, `UPDATE work_items SET status = $2, state_cat = $4, updated_at = now(), version = version + 1 WHERE id = $1 AND status = $3`,
+			wi.ID, status, wi.Status, wf.category(status))
 		if err != nil {
 			return err
 		}
@@ -853,8 +918,8 @@ func (a *App) apiSignNCR(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if wi.Type != "ncr" || wi.Status != "Reported" {
-		return badRequest("Disposition can be signed only while the nonconformance is Reported.")
+	if wi.Type != "ncr" || a.workflow("ncr").category(wi.Status) != CatOpen {
+		return badRequest("Disposition can be signed only before the nonconformance is dispositioned.")
 	}
 	var in struct {
 		Decision string `json:"decision"`
@@ -892,8 +957,8 @@ func (a *App) apiSignNCR(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if in.Decision == "Approved" {
-		if a.ncrStateRequirement(ctx, a.DB, wi, "Dispositioned") == nil {
-			if err := a.setWorkStatus(ctx, u, clientIP(r), wi, "Dispositioned"); err != nil {
+		if disp := a.workflow("ncr").ruleState("disposition"); disp != "" && a.ncrStateRequirement(ctx, a.DB, wi, disp) == nil {
+			if err := a.setWorkStatus(ctx, u, clientIP(r), wi, disp); err != nil {
 				return err
 			}
 		}
@@ -1050,21 +1115,22 @@ func (a *App) apiWork(w http.ResponseWriter, r *http.Request) error {
 		hist = append(hist, h)
 	}
 	rows.Close()
-	out := map[string]any{"item": wi, "links": links, "history": hist, "transitions": flowFor(wi.Type)[wi.Status],
-		"canEdit": u.CanIn(wi.Space, PermWorkEdit), "states": map[bool][]string{true: ncrStates, false: defaultStates}[wi.Type == "ncr"]}
+	wf := a.workflow(wi.Type)
+	out := map[string]any{"item": wi, "links": links, "history": hist, "transitions": a.allowedNext(u, wi),
+		"canEdit": u.CanIn(wi.Space, PermWorkEdit) && !u.IsVendor(), "states": wf.names(), "workflow": wf}
 	if wi.Type == "epic" {
 		var total, done int
-		cr, err := a.DB.Query(ctx, `SELECT id, status FROM work_items WHERE epic_id = $1`, wi.ID)
+		cr, err := a.DB.Query(ctx, `SELECT id, status, state_cat FROM work_items WHERE epic_id = $1`, wi.ID)
 		if err == nil {
 			children := []map[string]string{}
 			for cr.Next() {
-				var id, st string
-				if cr.Scan(&id, &st) == nil {
-					if st == "Cancelled" {
+				var id, st, cat string
+				if cr.Scan(&id, &st, &cat) == nil {
+					if cat == CatCancelled {
 						continue
 					}
 					total++
-					if st == "Done" {
+					if cat == CatDone {
 						done++
 					}
 					if vis(id) {
@@ -1089,7 +1155,7 @@ func (a *App) apiWork(w http.ResponseWriter, r *http.Request) error {
 		out["approvals"] = appr
 		var canSign bool
 		for _, ap := range appr {
-			if ap.UserID == u.ID && ap.Decision == "" && wi.Status == "Reported" {
+			if ap.UserID == u.ID && ap.Decision == "" && wf.category(wi.Status) == CatOpen {
 				canSign = true
 			}
 		}
