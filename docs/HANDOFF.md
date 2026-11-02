@@ -1,13 +1,13 @@
 # DesignHub Handoff
 
-Date: 2026-11-01 (updated for version 2)
+Date: 2026-11-02 (version 2 merged)
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md, docs/TEST-PLAN.md and docs/TEST-PLAN-V2.md. Version 1 is installed on my VM and testing is in progress. Version 2 is built on branch v2-build and PR #10 is open for review. Email notifications wait for a mail server decision. The next steps are in the handoff.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md, docs/TEST-PLAN.md and docs/TEST-PLAN-V2.md. Version 1 is installed on my VM and testing is in progress. Version 2 (2.0.0) is merged into main (PR #10) and is next to be installed and tested with TEST-PLAN-V2.md. Email notifications wait for a mail server decision. The next steps are in the handoff.
 
 ## Documents
 
@@ -56,7 +56,7 @@ All documents and code are on `main`.
 | 11. In-app About guide | Complete (PR #7) |
 | 12. Restyle to match OpenSchem (bug 3) | Complete (PR #8) |
 | 13. Version 2 documents: data model, screens, test plan | Complete (PR #9) |
-| 14. Build version 2 on branch `v2-build`, one pull request at the end | Built, PR #10 open. Email not built (mail server undecided). |
+| 14. Build version 2 on branch `v2-build`, one pull request at the end | Complete (PR #10). Email not built (mail server undecided). |
 | 15. Devon tests version 2 with TEST-PLAN-V2.md | Not started |
 
 ## Pull request history
@@ -72,7 +72,7 @@ All documents and code are on `main`.
 | #7 | About guide inside the app, version 1.2.0 | 2026-11-01 |
 | #8 | Restyle to match OpenSchem (bug 3), version 1.2.1 | 2026-11-02 |
 | #9 | Version 2 data model, screens and test plan | 2026-11-02 |
-| #10 | Version 2, version 2.0.0 | Open |
+| #10 | Version 2, version 2.0.0 | 2026-11-02 |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
@@ -194,7 +194,7 @@ Decisions made with Devon on 2026-11-01:
 | CSV import | Parts, BOM lines, requirements, work items, manufacturers, companies (to confirm in PR #9 review) |
 | Mail server | To be decided. Email notifications are built last. |
 
-Defaults in the v2 documents (merged in PR #9, built in PR #10):
+Defaults in the v2 documents (merged in PR #9, built in PR #10, merged 2026-11-02):
 
 | Topic | Proposal | Where |
 |---|---|---|
@@ -209,7 +209,7 @@ Defaults in the v2 documents (merged in PR #9, built in PR #10):
 | Templates | Stored in git under `templates/`; scope all spaces or one space | DATA-MODEL 7.25 |
 | Dashboard view | Moved after v2 | SPEC 9.4 |
 
-### Version 2 build (branch `v2-build`, PR #10)
+### Version 2 build (PR #10, merged)
 
 | Area | Server | Screens |
 |---|---|---|
@@ -385,10 +385,10 @@ Done for PR #4 (2026-10-31):
 
 ### Next steps
 
-1. Devon reviews PR #10. Approving a frontend build and a browser run here would let the new screens and PDF export be checked before merge.
-2. After merging PR #10, Devon saves the new `docker-compose.yml` on the VM (it adds the `pdf` service), then pulls and starts: `docker compose pull && docker compose up -d`.
-3. Devon tests with TEST-PLAN-V2.md.
-4. Devon decides the mail server; then email notifications are built.
+1. Devon saves the new `docker-compose.yml` from main on the VM (it adds the `pdf` service), then pulls and starts: `docker compose pull && docker compose up -d`.
+2. Devon tests with TEST-PLAN-V2.md and logs failures as GitHub issues with label `v2-test`.
+3. Devon decides the mail server; then email notifications are built.
+4. Optional: Devon approves a frontend build and a browser run in a session, so the new screens and PDF export can be checked here.
 5. Devon continues TEST-PLAN.md and the retest list above, and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
