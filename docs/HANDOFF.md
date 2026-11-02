@@ -1,22 +1,23 @@
 # DesignHub Handoff
 
-Date: 2026-11-01
+Date: 2026-11-01 (updated for version 2)
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
 
 Paste this into the new chat:
 
-> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md and docs/TEST-PLAN.md. Version 1 is installed on my VM and testing is in progress. PR #6 (Google sign-in) is merged. PR #7 (About guide) is open for review. The next steps are in the handoff.
+> I'm continuing work on DesignHub. Read docs/HANDOFF.md in GitHub repo Shwhat/DesignHub, branch main, then docs/SPEC.md, docs/DATA-MODEL.md, docs/SCREENS.md, docs/FRONTEND.md, docs/TEST-PLAN.md and docs/TEST-PLAN-V2.md. Version 1 is installed on my VM and testing is in progress. Version 2 is being specified: PR #8 (restyle) and PR #9 (version 2 documents) are open for review. The next steps are in the handoff.
 
 ## Documents
 
 | Document | Contents | State |
 |---|---|---|
-| `docs/SPEC.md` | Product specification, decisions, v1/v2/v3 release plan | v0.3, complete |
-| `docs/DATA-MODEL.md` | Identification, links, revisions, storage, field lists | v0.2, complete |
-| `docs/SCREENS.md` | General layout and the 15 v1 screens | v0.2, complete |
+| `docs/SPEC.md` | Product specification, decisions, v1/v2/v3 release plan | v0.4, v2 decisions added, in review (PR #9) |
+| `docs/DATA-MODEL.md` | Identification, links, revisions, storage, field lists | v0.3, v2 records added, in review (PR #9) |
+| `docs/SCREENS.md` | General layout, v1 screens and v2 screens (sections 18 to 27) | v0.3, in review (PR #9) |
 | `docs/TEST-PLAN.md` | v1 test plan: checklist, phone and tablet checks, scenarios, seed data | v0.2, complete |
+| `docs/TEST-PLAN-V2.md` | v2 test plan: checklist, regression, phone and tablet checks, scenarios SCN-10 to SCN-14, seed additions | v0.1, in review (PR #9) |
 | `docs/FRONTEND.md` | Frontend framework and editor selection | v0.1, complete |
 | `docs/GOOGLE-SIGNIN-SETUP.md` | Operator guide: Google Cloud OAuth client and DesignHub Google sign-in settings | v0.1, complete |
 | `web/src/about/*.md` | In-app About guide: capabilities, rules, record fields, technical, release notes | Maintained with every pull request |
@@ -50,9 +51,13 @@ All documents and code are on `main`.
 | 6. Build v1 on branch `v1-build`, one pull request at the end | Complete (PR #2) |
 | 7. Devon merges PR #2 and installs on the VM | Complete |
 | 8. Devon tests with TEST-PLAN.md | In progress |
-| 9. Fix the bug list, one branch per fix or group of fixes | In progress. PR #4 merged. Bug 3 direction agreed. Bug 1 waits on Devon. |
+| 9. Fix the bug list, one branch per fix or group of fixes | PR #4 merged. Bug 3 in PR #8. Bugs 1 and 4 closed. |
 | 10. Google sign-in, pulled forward from v2 | Complete (PR #6) |
-| 11. In-app About guide | Written on branch `about-wiki`, PR #7 open for review |
+| 11. In-app About guide | Complete (PR #7) |
+| 12. Restyle to match OpenSchem (bug 3) | Done on branch `restyle-openschem`, PR #8 open for review |
+| 13. Version 2 documents: data model, screens, test plan | Written on branch `docs/spec-v2`, PR #9 open for review |
+| 14. Build version 2 on branch `v2-build`, one pull request at the end | Waits on PR #9 approval. Email built last, once the mail server is decided. |
+| 15. Devon tests version 2 with TEST-PLAN-V2.md | Not started |
 
 ## Pull request history
 
@@ -64,7 +69,9 @@ All documents and code are on `main`.
 | #4 | Fix Library columns, phone search icon, banner spacing and svelte-check warnings | 2026-10-31 |
 | #5 | Update handoff | 2026-10-31 |
 | #6 | Google sign-in with allowed domains and addresses, signing PIN and recovery | 2026-10-31 |
-| #7 | About guide inside the app, version 1.2.0 | Open |
+| #7 | About guide inside the app, version 1.2.0 | 2026-11-01 |
+| #8 | Restyle to match OpenSchem (bug 3), version 1.2.1 | Open |
+| #9 | Version 2 data model, screens and test plan | Open |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
@@ -122,7 +129,6 @@ No `v1-test` issues have been logged yet.
 | Google Cloud OAuth client for each installation (see Google sign-in setup below) | Devon |
 | Mail server for email notifications (v2) | Devon |
 | Real items for the realistic sample (TEST-PLAN.md Appendix B) | Devon |
-| Answers to the open bug questions below | Devon |
 
 ## Bug list
 
@@ -130,16 +136,10 @@ Reported by Devon on 2026-10-30 after installing v1 on the VM. Findings are from
 
 | # | Report | Finding | State |
 |---|---|---|---|
-| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Tree part resolved in the current working version. Open: what "a much more robust pages setup" means (question below) |
+| 1 | Pages do not show up in the tree when created. A much more robust pages setup is needed. | Not reproduced. Creating a page with the sidebar "+" button (top level) and with "New child page" adds it to the tree immediately, on a fresh install and on the seed data; the server returns it in `GET /api/spaces/{id}/tree`. The sidebar "+" and "..." menu are the only ways to create a page. | Closed. Tree part resolved; the rest dropped by Devon 2026-11-01. |
 | 2 | Parts do not show under Library. The item count goes up. | Cause: `GET /api/prefs/{key}` returned `{"ok":true}` when the user had no saved preference, so Library used that object as its column list and drew no columns. The work List view had the same fault. | Fixed in PR #4. Devon to retest. |
-| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. Direction agreed 2026-10-31: match OpenSchem's styling (program-design-guide.md) so the programs feel like one set: tokens, light and dark themes, typography, spacing, buttons, menus, dialogs, lists and icon style. Stay on Svelte and keep the current DesignHub layout; the OpenSchem ribbon, docking panels and plain-JavaScript structure are not adopted. | Open, ready to start |
+| 3 | The whole app looks very basic. | Design pass needed across all screens: typography, spacing, color, icons (text glyphs such as ▶ and ⋯ are still used in many places), headers, tables, cards and empty states. FRONTEND.md section 7 already names Lucide icons and the Inter font as the intended bundled assets. Direction agreed 2026-10-31: match OpenSchem's styling (program-design-guide.md) so the programs feel like one set: tokens, light and dark themes, typography, spacing, buttons, menus, dialogs, lists and icon style. Stay on Svelte and keep the current DesignHub layout; the OpenSchem ribbon, docking panels and plain-JavaScript structure are not adopted. | Done in PR #8: OpenSchem tokens and themes, system font, compact desktop sizing with touch-sized controls on phones, OpenSchem-style inline SVG icons (`web/src/lib/icons.ts`, `components/Icon.svelte`). Inter removed. Devon to review. |
 | 4 | "where" (message cut off) | Dropped by Devon 2026-10-31 | Closed |
-
-### Open questions for Devon
-
-| Bug | Question |
-|---|---|
-| 1 | What does "a much more robust pages setup" mean? Candidates: a New page button on the space home and page view, a parent page picker, templates, a full page list per space. |
 
 ### PR #4 detail
 
@@ -174,6 +174,39 @@ On the VM: `docker compose pull && docker compose up -d`, then:
 |---|---|
 | The four editing modes, image paste and "/" block insert have not been driven in a browser; only page display is verified | `web/src/components/Editor.svelte` |
 | `.gitkeep` plugin not yet exercised by a build | `web/vite.config.ts` |
+
+## Version 2
+
+Scope (SPEC.md 16.2): Vendor and Contractor roles with company scoping and expiry; custom roles and editable workflows; sprints, milestones, timeline view and time tracking; templates, inline comments, PDF export; email notifications; CSV import and export.
+
+Decisions made with Devon on 2026-11-01:
+
+| Question | Decision |
+|---|---|
+| Order | Documents first, like v1, then build |
+| Delivery | One branch `v2-build`, one pull request at the end |
+| Restyle (bug 3) | Before v2, so v2 screens are built in the new style |
+| Companies | Library record `COMP-NNNN` (basis for the v3 Supplier type) |
+| Editable workflows | Task, issue, action, epic and NCR. Change orders stay fixed. One workflow per type for all spaces. |
+| PDF export | Server side, headless Chromium in a new `pdf` container |
+| CSV export | Every record type and every list |
+| CSV import | Parts, BOM lines, requirements, work items, manufacturers, companies (to confirm in PR #9 review) |
+| Mail server | To be decided. Email notifications are built last. |
+
+Defaults proposed in the v2 documents for Devon's review (not yet confirmed):
+
+| Topic | Proposal | Where |
+|---|---|---|
+| Vendor scope | Released revisions of items `supplied by` their company, released Drawing, Datasheet, 3D model, Schematic and BOM file files, NCRs with their company as Supplier, assigned actions | DATA-MODEL 5.5 |
+| Supplier links | `supplied by` stored in PostgreSQL, changeable on released items without a change order | DATA-MODEL 3.1 |
+| Internal comments | Any non-Vendor can mark a comment Internal; hidden from Vendors | DATA-MODEL 5.5 |
+| Contractor scope | Edit pages and work items in member spaces; read released library items whose home space is a member space | DATA-MODEL 5.5 |
+| Expiry | Required for Vendor and Contractor; Admin notices 14 days and 1 day before | DATA-MODEL 5.5 |
+| Workflow categories | Open, Active, Done, Cancelled drive My Work, progress and reports | DATA-MODEL 4.7 |
+| Milestone health | At risk within 7 days of target with under 80 percent done | DATA-MODEL 7.23 |
+| Time entries | 0.25 h steps, up to 24 h, no future dates; not on epics | DATA-MODEL 7.24 |
+| Templates | Stored in git under `templates/`; scope all spaces or one space | DATA-MODEL 7.25 |
+| Dashboard view | Moved after v2 | SPEC 9.4 |
 
 ## Google sign-in (branch `google-signin`)
 
@@ -306,13 +339,11 @@ Done for PR #4 (2026-10-31):
 
 ### Next steps
 
-1. Devon pulls the new image and runs the retest list above.
-2. Devon follows docs/GOOGLE-SIGNIN-SETUP.md and checks SGN-15 to SGN-24.
-3. Devon reviews and merges PR #7, then checks ADM-13 to ADM-16.
-4. Bug 3: restyle to match OpenSchem on a new branch.
-5. Bug 1: get the answer on "a much more robust pages setup".
-6. Fix bugs on branches from `main`, open a pull request for Devon to merge, then Devon pulls the new image (`docker compose pull && docker compose up -d`).
-7. Devon continues TEST-PLAN.md and adds failures to the bug list or as GitHub issues with label `v1-test`.
+1. Devon reviews and merges PR #8 (restyle), pulls the image and checks every screen in light and dark and on the phone.
+2. Devon reviews PR #9 (version 2 documents): the proposed defaults in the Version 2 section above and the CSV import list.
+3. After PR #9 is approved: build version 2 on `v2-build` from `main`, one pull request at the end. Email last.
+4. Devon decides the mail server.
+5. Devon continues TEST-PLAN.md and the retest list above, and adds failures to the bug list or as GitHub issues with label `v1-test`.
 
 ## Build environment notes
 

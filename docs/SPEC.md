@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Document | DesignHub product specification |
-| Version | 0.3 (draft for review) |
-| Date | 2026-10-30 |
+| Version | 0.4 (draft for review) |
+| Date | 2026-11-01 |
 | Owner | Devon |
 | Status | Draft |
 
@@ -70,6 +70,7 @@ Initial use is product design, followed by the factory build-out. Both are first
 | `postgres` | Application database |
 | `influxdb` | Time-series database (enabled in a later release) |
 | `proxy` | HTTPS termination in front of the application. Uses a self-signed certificate until a domain is configured. |
+| `pdf` | Headless Chromium that renders PDF exports (v2). Reachable only from `designhub`; no internet access needed. |
 
 Setup creates, configures and connects the databases automatically. The whole system starts and stops with a single command.
 
@@ -178,7 +179,7 @@ Work items, change order records, comments and time entries can be exported to m
 
 - Each user holds one library role, which controls engineering items and change orders company-wide, and may hold one role in each space, which controls that space's pages and work items.
 - Individual records can be locked to an access list. Users not on the list do not see the record.
-- Vendors and Contractors are linked to a company record and see only records linked to that company or their assigned projects.
+- Vendors and Contractors are linked to a company record (a library record, `COMP-NNNN`) and see only records linked to that company or their assigned spaces. The rules are in DATA-MODEL.md section 5.5.
 - Accounts for Vendors and Contractors can have an expiry date.
 - Admins can create custom roles by copying an existing role and adjusting its permissions.
 - Admins define which roles may add or remove approvers on a change order.
@@ -250,7 +251,8 @@ Pages can embed blocks that always display current data:
 
 ### 6.9 Output
 
-- Export a page or page tree to PDF.
+- Export a page or page tree to PDF. Engineering items, change orders, work items and NCRs also export to PDF.
+- PDFs are rendered on the server by headless Chromium in the `pdf` container, so the PDF matches the page view, including tables and live blocks.
 - Print-friendly view.
 
 ## 7. Engineering data and the Bill of Design
@@ -313,7 +315,9 @@ Part kind (production, reference, purchased), unit of measure, tracking (serial,
 
 ### 7.8 Import and export
 
-- CSV import and export for parts and Bill of Design data.
+- CSV export from every list and table, and a full export of every record type, limited to records the user can see.
+- CSV import for parts, Bill of Design lines, requirements, work items, the manufacturer list and companies. Imports create Drafts or update never-released records only, show a preview, and save all rows or none.
+- Change orders, signatures, history, comments and users are not imported.
 
 ## 8. Change control
 
@@ -386,7 +390,9 @@ Nonconformance workflow:
 | Closed | Complete |
 
 - A nonconformance whose fix changes the design requires a linked change order before it can close.
-- Admins can edit workflows per type: states, allowed transitions, roles allowed to perform each transition, and required fields per state.
+- Admins can edit workflows per type: states, allowed transitions, roles allowed to perform each transition, and required fields per state. Editable types: task, issue, action, epic and NCR. One workflow per type, used in every space.
+- The change order workflow and engineering item statuses are fixed.
+- The NCR disposition signature, the root cause and corrective action requirement, and the change order requirement for design changes cannot be removed by editing.
 
 ### 9.4 Views
 
@@ -396,7 +402,7 @@ Nonconformance workflow:
 | List | Sortable, filterable table with saved filters |
 | My Work | Items assigned to the current user, overdue first |
 | Timeline | Dated items over time, grouped by epic or milestone |
-| Dashboard | Counts by status, aging, NCRs by part and supplier |
+| Dashboard | Counts by status, aging, NCRs by part and supplier. Planned after version 2. |
 
 ### 9.5 Planning
 
@@ -484,6 +490,19 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 - Email notifications
 - CSV import and export
 
+Decisions for version 2 (2026-11-01):
+
+| Question | Decision |
+|---|---|
+| Order of work | Documents first (data model, screens, test plan), then build on one branch with one pull request at the end |
+| Restyle | Done before version 2 (OpenSchem look, version 1.2.1) |
+| Companies | Library record `COMP-NNNN`, the basis for the v3 Supplier type |
+| Editable workflows | Work items and NCRs. Change orders stay fixed. |
+| PDF export | Server side, headless Chromium in its own container |
+| CSV export | Every record type and every list |
+| CSV import | Parts, BOM lines, requirements, work items, manufacturers, companies |
+| Email | Built last; mail server still to be decided |
+
 ### 16.3 Version 3
 
 - InfluxDB integration: charts, test data, production metrics
@@ -498,7 +517,8 @@ Each service is disabled by default, configured by a Super Admin, and has a time
 | Item | Status |
 |---|---|
 | Domain name and HTTPS certificate | To be obtained. Required before Google sign-in. |
-| Mail server for email notifications | To be decided before version 2 |
+| Mail server for email notifications | To be decided before the version 2 email work is built |
+| CSV import record types | Confirm the list in section 7.8 |
 | Detailed data model (fields and relations per type) | Defined in [DATA-MODEL.md](DATA-MODEL.md) |
 | Screen layouts | Defined in [SCREENS.md](SCREENS.md) |
 | Test plan for version 1 | Defined in [TEST-PLAN.md](TEST-PLAN.md) |
