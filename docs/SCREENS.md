@@ -27,7 +27,8 @@
 14. Notifications inbox
 15. Admin
 16. User profile and settings
-17. Open items
+17. About guide
+18. Open items
 
 ---
 
@@ -37,7 +38,7 @@
 |---|---|
 | Navigation | Top bar and left sidebar on every screen after sign-in |
 | Top bar | Search, notifications bell, profile menu |
-| Left sidebar | Home, My Work, Library, Search, space switcher, page tree and Work entries of the current space |
+| Left sidebar | Home, My Work, Library, Change orders, Search, Notifications, About, space switcher, page tree and Work entries of the current space |
 | Devices | Desktop, tablet and phone, with responsive layouts for all three in version 1 |
 | Theme | Light and dark, chosen in user settings, with a follow-device option |
 | Density | Comfortable |
@@ -255,7 +256,7 @@ Uses the common record layout (section 1.1).
 
 | Area | Content |
 |---|---|
-| Profile menu | My profile, Settings, Admin (if permitted), Sign out |
+| Profile menu | My profile, Settings, Admin (if permitted), About DesignHub, Sign out |
 | Profile | Display name, email, time zone |
 | Security | Local accounts: change password. Google accounts: signing PIN set or change. Both: active sessions with sign out of other devices. |
 | Appearance | Light, dark, follow device |
@@ -263,7 +264,19 @@ Uses the common record layout (section 1.1).
 | Home layout | Sections on or off and their order |
 | Notifications | Which events notify the user |
 
-## 17. Open items
+## 17. About guide
+
+| Area | Content |
+|---|---|
+| Entry | About in the left sidebar and About DesignHub in the profile menu. Signed-in users only. |
+| Header | "About DesignHub" and the installed version |
+| Page list | Left column listing every guide page. On phones, a page picker at the top. |
+| Pages | Overview, Capabilities, Numbering, Revisions and release, Change control, Work and NCRs, Access and sign-in, Records and audit, Record fields, Technical, Release notes |
+| Page body | Rendered Markdown with links between guide pages, and Previous and Next links at the bottom |
+| Source | Markdown files in `web/src/about`, bundled with each build. File `NN-slug.md` is page `/about/slug`, ordered by NN, titled by its first heading. |
+| Unknown page | Not found screen |
+
+## 18. Open items
 
 | Item | Status |
 |---|---|
