@@ -528,8 +528,18 @@ func (r *Repo) Changed(fromRef, toRef string) ([]string, error) {
 }
 
 // Repack packs loose objects to keep the repository small and fast.
+//
+// Repacking deletes the old pack files, but go-git keeps its index of them
+// in memory. The repository is therefore opened again afterwards, even when
+// the repack fails part way, so later reads use only the files on disk.
 func (r *Repo) Repack() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.g.RepackObjects(&git.RepackConfig{})
+	err := r.g.RepackObjects(&git.RepackConfig{})
+	g, oerr := git.PlainOpen(r.dir)
+	if oerr != nil {
+		return errors.Join(err, fmt.Errorf("reopen repository: %w", oerr))
+	}
+	r.g = g
+	return err
 }

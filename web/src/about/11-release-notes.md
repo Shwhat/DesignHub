@@ -2,6 +2,10 @@
 
 The installed version is shown at the top of this guide.
 
+## 2.0.1 (2026-11-17): Saving fixed after the nightly backup
+
+- Fixed: after the nightly backup, saving pages and engineering items, and creating new ones, failed with "Something went wrong" until the server was restarted. No data was lost.
+
 ## 2.0.0 (2026-11-02): Version 2
 
 - Companies: vendors, contractors and customers with supplier status, contacts, supplied items and NCRs. Suppliers can be set on released items without a change order.
