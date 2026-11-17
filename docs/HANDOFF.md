@@ -58,7 +58,7 @@ All documents and code are on `main`.
 | 13. Version 2 documents: data model, screens, test plan | Complete (PR #9) |
 | 14. Build version 2 on branch `v2-build`, one pull request at the end | Complete (PR #10). Email not built (mail server undecided). |
 | 15. Devon tests version 2 with TEST-PLAN-V2.md | Not started |
-| 16. Page forms: templates with form fields, page generated live from the form | Built on branch `page-forms`, in review |
+| 16. Page forms: templates with form fields, page generated live from the form | Built on branch `page-forms` (PR #13), in review |
 
 ## Pull request history
 
@@ -74,6 +74,7 @@ All documents and code are on `main`.
 | #8 | Restyle to match OpenSchem (bug 3), version 1.2.1 | 2026-11-02 |
 | #9 | Version 2 data model, screens and test plan | 2026-11-02 |
 | #10 | Version 2, version 2.0.0 | 2026-11-02 |
+| #13 | Page forms, version 2.1.0 | Open |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
