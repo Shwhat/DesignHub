@@ -46,6 +46,8 @@ This page lists what DesignHub does in the current version, followed by what is 
 - Version history with comparison between any two versions, and restore.
 - Drag and drop to reorder and move pages.
 - Page templates with placeholders, company-wide or per space. Six templates come with DesignHub.
+- Form templates: a template can have form fields (text, long text, date, person, people, dropdown, toggle, record, list and table). A new page from it opens the form with the page generated live below it. Required fields must be filled in before the page is created or saved. Form pages are edited through the same form, or switched to plain text with "Edit as text". The page is still stored as markdown.
+- The six templates that come with DesignHub have forms.
 - Inline comments on selected text, highlighted in the page, and internal comments hidden from Vendors.
 
 ### Work

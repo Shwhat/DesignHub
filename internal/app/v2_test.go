@@ -1,9 +1,12 @@
 package app
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
+
+	"designhub/internal/model"
 )
 
 // Version 2 checks against the seed data in TEST-PLAN-V2.md Appendix A.
@@ -319,31 +322,73 @@ func TestTemplatePage(t *testing.T) {
 	e := signIn(t, "editor1")
 	var ts []*Template
 	e.must("GET", "/api/templates?space=SP-0001&active=1", nil, &ts)
-	var notes string
+	var notes, review string
 	for _, x := range ts {
-		if x.Name == "Meeting notes" {
+		switch x.Name {
+		case "Meeting notes":
 			notes = x.ID
+		case "Design review":
+			review = x.ID
+		}
+		if len(x.Form) == 0 {
+			t.Errorf("template %s has no form", x.Name)
 		}
 	}
-	if len(ts) < 6 || notes == "" {
+	if len(ts) < 6 || notes == "" || review == "" {
 		t.Fatalf("templates: %d", len(ts))
 	}
+	// Required fields must be filled in.
+	if st := e.do("POST", "/api/pages", map[string]any{"space": "SP-0001", "template": notes, "values": map[string]any{}}, nil); st != 400 {
+		t.Errorf("create without required values: %d", st)
+	}
+	values := map[string]any{"date": "2026-11-17", "notes-by": "Editor One", "attendees": []any{"Editor One", "Visitor"}, "agenda": []any{"Layout"},
+		"actions": []any{map[string]any{"action": "Order guard", "owner": "Editor One", "due": "2026-11-20"}}}
 	var id map[string]string
-	e.must("POST", "/api/pages", map[string]any{"space": "SP-0001", "template": notes}, &id)
+	e.must("POST", "/api/pages", map[string]any{"space": "SP-0001", "template": notes, "values": values, "body": "# Meeting\n\n- Editor One\n"}, &id)
 	var p struct {
-		Page *struct {
-			Title    string `json:"title"`
-			Body     string `json:"body"`
-			PageType string `json:"pageType"`
-		} `json:"page"`
+		Item *model.Item `json:"item"`
 	}
 	e.must("GET", "/api/pages/"+id["id"], nil, &p)
-	if p.Page == nil {
-		t.Skip("page view shape differs")
+	if p.Item == nil || p.Item.PageType != "Meeting notes" || !strings.HasPrefix(p.Item.Title, "Meeting notes 20") || p.Item.Body != "# Meeting\n\n- Editor One\n" {
+		t.Fatalf("page from template: %+v", p.Item)
 	}
-	if p.Page.PageType != "Meeting notes" || !strings.Contains(p.Page.Body, "Editor One") || !strings.HasPrefix(p.Page.Title, "Meeting notes 20") {
-		t.Errorf("page from template: %+v", p.Page)
+	f := p.Item.Form
+	if f == nil || len(f.Fields) == 0 || !strings.Contains(f.Layout, "{{attendees}}") || !strings.Contains(f.Layout, "| Date | {{date}} |") || !strings.HasPrefix(f.Layout, "# {title}") || f.Values["notes-by"] != "Editor One" {
+		t.Fatalf("form on page: %+v", f)
 	}
+	// Saving keeps the template's layout and fields; only values change.
+	var pv struct {
+		Hash string `json:"hash"`
+	}
+	e.must("GET", "/api/pages/"+id["id"], nil, &pv)
+	upd := *p.Item
+	upd.Form = &model.PageForm{Layout: "changed", Fields: nil, Values: map[string]any{"date": "2026-11-18", "notes-by": "Editor One", "attendees": []any{"Editor One"}, "agenda": []any{"Layout"}}}
+	e.must("PUT", "/api/pages/"+id["id"], map[string]any{"item": upd, "base": pv.Hash}, nil)
+	if c := cache.get(id["id"]).Item.Form; c == nil || c.Layout != f.Layout || len(c.Fields) != len(f.Fields) || c.Values["date"] != "2026-11-18" {
+		t.Errorf("saved form: %+v", c)
+	}
+	// A required value cannot be cleared.
+	e.must("GET", "/api/pages/"+id["id"], nil, &pv)
+	upd.Form.Values = map[string]any{"date": "2026-11-18", "notes-by": "Editor One", "attendees": []any{}, "agenda": []any{"Layout"}}
+	if st := e.do("PUT", "/api/pages/"+id["id"], map[string]any{"item": upd, "base": pv.Hash}, nil); st != 400 {
+		t.Errorf("save without attendees: %d", st)
+	}
+	// Edit as text removes the form.
+	upd.Form = nil
+	e.must("PUT", "/api/pages/"+id["id"], map[string]any{"item": upd, "base": pv.Hash}, nil)
+	if cache.get(id["id"]).Item.Form != nil {
+		t.Error("form not removed")
+	}
+
+	// Template field lists are checked against the layout.
+	a := signIn(t, "admin1")
+	tpl := map[string]any{"name": "Inspection", "pageType": "General", "body": "# {title}\n\n{{result}}\n",
+		"form": []map[string]any{{"key": "result", "label": "Result", "type": "select", "options": []string{"Pass", "Fail"}, "required": true}, {"key": "notes", "label": "Notes", "type": "textarea"}}}
+	if st := a.do("POST", "/api/templates", tpl, nil); st != 400 {
+		t.Errorf("field not in layout accepted: %d", st)
+	}
+	tpl["body"] = "# {title}\n\n{{result}}\n\n{{notes}}\n"
+	a.must("POST", "/api/templates", tpl, nil)
 }
 
 func TestCSVImportExport(t *testing.T) {
@@ -423,5 +468,22 @@ func TestBOMImport(t *testing.T) {
 	}
 	if st := e.do("POST", "/api/imports/preview", map[string]any{"type": "bom", "mode": "add", "target": "100003-201", "sha256": sha}, nil); st != 400 {
 		t.Errorf("import into released assembly: %d", st)
+	}
+}
+
+func TestTemplateFormsUpgrade(t *testing.T) {
+	ctx := context.Background()
+	// An installation from before page forms: initial templates at version 1
+	// without a form. Unchanged ones get their form, edited ones are kept.
+	testApp.DB.Exec(ctx, `UPDATE templates SET form = '[]', version = 1, changed_by = NULL, body = 'old' WHERE name IN ('Procedure', 'Test report')`)
+	testApp.DB.Exec(ctx, `UPDATE templates SET version = 3 WHERE name = 'Test report'`)
+	if err := testApp.ensureTemplates(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var proc, test string
+	testApp.DB.QueryRow(ctx, `SELECT form::text FROM templates WHERE name = 'Procedure'`).Scan(&proc)
+	testApp.DB.QueryRow(ctx, `SELECT form::text FROM templates WHERE name = 'Test report'`).Scan(&test)
+	if !strings.Contains(proc, "responsibilities") || test != "[]" {
+		t.Errorf("upgrade: procedure %s, test report %s", proc, test)
 	}
 }

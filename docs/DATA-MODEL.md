@@ -491,6 +491,7 @@ All common engineering item fields, plus:
 | Show released only | Yes/No | No | Controlled pages only |
 | Body | Long text | No | May contain live blocks |
 | Template | Template | No | |
+| Form | Layout, fields and values | No | Pages from a template with form fields. Stored in the frontmatter as `form`. The body is generated from it. Removed by "Edit as text". |
 | Revision, Status | | Auto | Controlled pages only. Uncontrolled pages keep version history without revisions. |
 | Owner | User | Yes | |
 | Created by, Labels, Locked, Attachments, Links | | | As section 7.1 |
@@ -862,13 +863,37 @@ Users edit and delete their own entries. Users with "Edit anyone's time entries"
 | Description | Text | No | Shown in the New page dialog |
 | Page type | Choice | Yes | Admin list. Sets the new page's type. |
 | Title pattern | Text | No | For example `Design review {date}` |
-| Body | Long text | Yes | May contain live blocks and placeholders |
+| Body | Long text | Yes | May contain live blocks and placeholders. With form fields it is the layout, with `{{key}}` where each field goes. |
+| Form fields | List | No | See below |
 | Active | Yes/No | Yes | |
-| Changed by, Changed on | | Auto | Every body version is kept |
+| Changed by, Changed on | | Auto | Every body and form version is kept |
 
 Placeholders filled when the page is created: `{date}`, `{user}`, `{space}`, `{title}`. A page keeps a reference to its template; later template changes do not change existing pages.
 
 Initial templates (All spaces): Design review, Test report, Meeting notes, Work instruction, Procedure, Decision record.
+
+**Form fields (v2.1)**
+
+| Property | Notes |
+|---|---|
+| Key | Lowercase letters, digits and hyphens, unique in the template. Used as `{{key}}` in the body. |
+| Label | Shown in the form and as table column headings |
+| Type | Text, Long text, Date, Person, People, Dropdown, Toggle, Record, List, Table |
+| Required | A required field must be filled in before the page can be created or saved. A required toggle must be on. A required table needs at least one row. |
+| Choices | Dropdown only, at least two |
+| Default | May contain `{date}`, `{user}` and `{space}` |
+| Help text | Shown under the field |
+| Record types | Record only. Empty offers every type. |
+| Columns | Table only. Column types: Row number, Text, Date, Person, Dropdown, Toggle, Record. Columns can be required. |
+
+Rules:
+
+- Every field is placed in the body and every `{{key}}` in the body names a field. A table token is on a line of its own.
+- A token on a line of its own is written as a block: People and List as a bulleted list, Table as a markdown table, Long text as paragraphs. An empty block is written as "None." In other text a token is written on one line (lists joined with commas).
+- Toggles are written as Yes or No. Records are written as `[[ID]] Title`. Table rows with nothing filled in are left out.
+- A page created from a form template stores the layout (placeholders filled, except `{title}`), the fields and the values in its frontmatter. Its body is the markdown generated from them, so the file stays readable without DesignHub.
+- Editing such a page changes only the values; the layout and fields stay as they were when the page was created. "Edit as text" removes the form and keeps the body.
+- On update, initial templates never changed since they were created get their forms. Changed templates are kept as they are.
 
 ### 7.26 CSV import (v2)
 

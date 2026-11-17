@@ -203,13 +203,14 @@ func (a *App) apiCreatePage(w http.ResponseWriter, r *http.Request) error {
 	u := userFrom(r)
 	ctx := r.Context()
 	var in struct {
-		Space      string `json:"space"`
-		Parent     string `json:"parent"`
-		Title      string `json:"title"`
-		PageType   string `json:"pageType"`
-		Controlled string `json:"controlled"`
-		Body       string `json:"body"`
-		Template   string `json:"template"`
+		Space      string         `json:"space"`
+		Parent     string         `json:"parent"`
+		Title      string         `json:"title"`
+		PageType   string         `json:"pageType"`
+		Controlled string         `json:"controlled"`
+		Body       string         `json:"body"`
+		Template   string         `json:"template"`
+		Values     map[string]any `json:"values"`
 	}
 	if err := decode(r, &in); err != nil {
 		return err
@@ -217,6 +218,7 @@ func (a *App) apiCreatePage(w http.ResponseWriter, r *http.Request) error {
 	if !u.CanIn(in.Space, PermSpaceEdit) {
 		return errForbidden
 	}
+	var form *model.PageForm
 	if in.Template != "" {
 		// A template sets the page type and fills its placeholders once.
 		t, err := a.templateFor(ctx, in.Template, in.Space)
@@ -231,7 +233,18 @@ func (a *App) apiCreatePage(w http.ResponseWriter, r *http.Request) error {
 		}
 		in.Title = title
 		in.PageType = t.PageType
-		in.Body = fillPlaceholders(t.Body, u, spaceName, title)
+		if len(t.Form) > 0 {
+			// The browser sends the values and the body generated from them.
+			form = &model.PageForm{Layout: fillLayout(t.Body, u, spaceName), Fields: t.Form, Values: in.Values}
+			if form.Values == nil {
+				form.Values = map[string]any{}
+			}
+			if strings.TrimSpace(in.Body) == "" {
+				in.Body = fillPlaceholders(t.Body, u, spaceName, title)
+			}
+		} else {
+			in.Body = fillPlaceholders(t.Body, u, spaceName, title)
+		}
 	}
 	var archived bool
 	if err := a.DB.QueryRow(ctx, `SELECT archived FROM spaces WHERE id = $1`, in.Space).Scan(&archived); err != nil {
@@ -262,7 +275,7 @@ func (a *App) apiCreatePage(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	p := &model.Item{Type: model.TypePage, Title: strings.TrimSpace(in.Title), Owner: u.Username, CreatedBy: u.Username, Space: in.Space,
-		Parent: in.Parent, Sort: maxSort + 10, PageType: in.PageType, Controlled: in.Controlled, Body: in.Body, Template: in.Template}
+		Parent: in.Parent, Sort: maxSort + 10, PageType: in.PageType, Controlled: in.Controlled, Body: in.Body, Template: in.Template, Form: form}
 	if a.isControlled(ctx, p) {
 		p.Status = model.StatusDraft
 	}

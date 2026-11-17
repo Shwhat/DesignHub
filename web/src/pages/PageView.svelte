@@ -18,6 +18,8 @@
   import PdfDialog from '../components/PdfDialog.svelte';
   import { pdfHTML } from '../lib/exporting';
   import { inline } from '../lib/inline.svelte';
+  import PageFormEditor from '../components/PageFormEditor.svelte';
+  import { normalize } from '../lib/forms';
 
   let { params }: { params: any; pattern?: string } = $props();
   const id = untrack(() => params.id);
@@ -43,6 +45,8 @@
   let article: HTMLElement | undefined = $state();
   let selBtn: { x: number; y: number } | null = $state(null);
   let anchors: any[] = $state([]);
+  let formMiss: any[] = $state([]);
+  let formErrors = $state(false);
 
   // Inline comments: highlight the quoted text of open inline comments.
   async function loadAnchors() {
@@ -174,6 +178,8 @@
   async function startEdit() {
     const main = v.perms.editTarget === 'main';
     draft = JSON.parse(JSON.stringify(main ? v.current : v.draft));
+    if (draft.form) draft.form.values = normalize(draft.form.fields || [], draft.form.values);
+    formErrors = false;
     base = main ? v.hash : v.draftHash;
     editing = true; dirty = false; comment = '';
     try { const d = await get(`/api/records/${id}/draft`); if (d.draft && d.base === base) savedDraft = d; } catch {}
@@ -194,6 +200,7 @@
     setQuery({ edit: null });
   }
   async function save() {
+    if (draft.form && formMiss.length) { formErrors = true; toast('Fill in the required fields first.', 'error'); return; }
     saving = true; clearTimeout(t);
     try {
       await put(`/api/pages/${id}`, { item: draft, base, comment });
@@ -205,6 +212,10 @@
       else toast(e.message, 'error');
     }
     saving = false;
+  }
+  function editAsText() {
+    if (!confirm('Edit this page as text? The form is removed from the page. The text stays as it is now.')) return;
+    draft.form = null;
   }
   async function openEditUnderCO() {
     coOpen = true;
@@ -243,6 +254,7 @@
       {:else}<h1>{shown.title}</h1>{/if}
       <div class="meta" style="margin-top: 0.3rem">
         {#if v.controlled}<Status value={v.status} />{#if shown.revision}<span>rev {shown.revision}</span>{/if}{/if}
+        {#if shown.form}<span class="pill" title="This page is filled in with a form">Form</span>{/if}
         <button class="ghost small" onclick={() => (infoOpen = !infoOpen)}>{infoOpen ? 'Hide details' : 'Page details'}</button>
       </div>
     </div>
@@ -291,11 +303,16 @@
     <div class="save-bar">
       <strong>Editing{v.perms.editTarget === 'co' ? ' on ' + v.co.id : ''}</strong>
       <input placeholder="What changed? (recorded in history)" bind:value={comment} aria-label="Change comment" />
+      {#if draft.form}<button onclick={editAsText} title="Remove the form and edit the markdown directly">Edit as text</button>{/if}
       <button onclick={cancel}>Cancel</button>
       <button class="primary" disabled={saving} onclick={save}>{saving ? 'Saving...' : 'Save'}</button>
     </div>
     {#if savedDraft}<div class="banner info">You have unsaved changes from {dateTime(savedDraft.updatedAt)}. <button class="small" onclick={() => { draft = savedDraft.draft; savedDraft = null; }}>Restore them</button> <button class="small" onclick={() => { savedDraft = null; del(`/api/records/${id}/draft`).catch(() => {}); }}>Discard</button></div>{/if}
-    <Editor bind:value={draft.body} recordId={id} />
+    {#if draft.form}
+      <PageFormEditor layout={draft.form.layout} fields={draft.form.fields} bind:values={draft.form.values} title={draft.title} bind:body={draft.body} bind:miss={formMiss} showErrors={formErrors} />
+    {:else}
+      <Editor bind:value={draft.body} recordId={id} />
+    {/if}
   {:else}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->

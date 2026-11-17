@@ -373,7 +373,10 @@ Uses the common record layout (section 1.1).
 | Admin, Templates | Table: name, scope, page type, active, changed on. New template, copy, deactivate. |
 | Space templates | Space home, Actions, Templates: the same table for that space, for space Admins |
 | Template editor | Same editor and modes as pages. Fields: name, scope, description, page type, title pattern. A Placeholders menu inserts {date}, {user}, {space}, {title}. |
+| Form fields (v2.1) | Below the body. Each field: label, type, required, and settings (key, default, choices, record types, help text, table columns). Move up, move down, remove. Insert adds the field's token to the end of the body. "Preview the form" shows the form and the generated page with today's date and the signed-in user. |
 | Use | New page dialog (section 9) |
+| New page from a form template (v2.1) | The New page dialog shows Next instead of Create. A wide dialog follows: title, parent page, the form, and below it the generated page with Preview and Markdown tabs, updated as fields change. Required fields are marked with an asterisk. The footer shows how many required fields are left. Create with fields missing highlights them and lists them; the page is not created. |
+| Editing a form page (v2.1) | Edit opens the form with the generated page below. Save is refused while required fields are empty. "Edit as text" in the save bar removes the form and opens the text editor. A "Form" label beside the page details marks form pages. |
 
 ## 23. Inline comments (v2)
 

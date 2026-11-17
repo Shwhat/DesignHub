@@ -6,6 +6,8 @@
   import Icon from './Icon.svelte';
   import { isVendor, isContractor } from '../lib/state.svelte';
   import { onDestroy } from 'svelte';
+  import PageFormEditor from './PageFormEditor.svelte';
+  import { fill, initialValues, today, type FormField } from '../lib/forms';
 
   let tree: { home: string; pages: any[] } = $state({ home: '', pages: [] });
   let open: Record<string, boolean> = $state({});
@@ -68,7 +70,39 @@
     newTemplate = '';
     templates = await get(`/api/templates?space=${space}&active=1`).catch(() => []);
   }
+  // Templates with a form open a second step: the form, with the page shown
+  // live below it. The page is created only when the required fields are
+  // filled in.
+  let formStep: { tpl: any; parent: string; title: string; layout: string; fields: FormField[]; values: Record<string, any> } | null = $state(null);
+  let formBody = $state('');
+  let formMiss: any[] = $state([]);
+  let formErrors = $state(false);
+  const chosen = $derived(templates.find((t) => t.id === newTemplate));
+  const chosenHasForm = $derived(!!chosen?.form?.length);
+  async function openForm() {
+    try {
+      const r = await get('/api/templates/' + newTemplate);
+      const t = r.template;
+      const ctx = { date: today(), user: session.me?.displayName || '', space: spaces.find((s) => s.id === space)?.name || '' };
+      formStep = { tpl: t, parent: newFor ?? tree.home, title: newTitle.trim() || fill(t.titlePattern || t.name, ctx).trim(), layout: fill(t.body, ctx), fields: t.form, values: initialValues(t.form, ctx) };
+      formErrors = false;
+      newFor = null;
+    } catch (e: any) { toast(e.message, 'error'); }
+  }
+  async function createFromForm() {
+    if (!formStep) return;
+    if (formMiss.length || !formStep.title.trim()) { formErrors = true; toast('Fill in the required fields first.', 'error'); return; }
+    const f = formStep;
+    try {
+      const r = await post('/api/pages', { space, parent: f.parent === tree.home ? '' : f.parent, title: f.title.trim(), template: f.tpl.id, values: $state.snapshot(f.values), body: formBody });
+      formStep = null;
+      open = { ...open, [f.parent]: true };
+      await loadTree();
+      navigate('/pages/' + r.id);
+    } catch (e: any) { formErrors = true; toast(e.message, 'error'); }
+  }
   async function createPage() {
+    if (chosenHasForm) return openForm();
     const parent = newFor ?? tree.home;
     const title = newTitle;
     if (!title.trim() && !newTemplate) return;
@@ -209,7 +243,22 @@
       <label class="tpl" class:on={newTemplate === ''}><input type="radio" name="tpl" value="" bind:group={newTemplate} /><span><strong>Blank page</strong><br /><span class="muted small">Start with an empty page.</span></span></label>
       {#each templates as t}<label class="tpl" class:on={newTemplate === t.id}><input type="radio" name="tpl" value={t.id} bind:group={newTemplate} /><span><strong>{t.name}</strong>{#if t.space} <span class="pill">This space</span>{/if}<br /><span class="muted small">{t.description}</span></span></label>{/each}
     </div>
-    {#snippet footer()}<button onclick={() => (newFor = null)}>Cancel</button><button class="primary" disabled={!newTitle.trim() && !newTemplate} onclick={createPage}>Create</button>{/snippet}
+    {#snippet footer()}<button onclick={() => (newFor = null)}>Cancel</button><button class="primary" disabled={!newTitle.trim() && !newTemplate} onclick={createPage}>{chosenHasForm ? 'Next' : 'Create'}</button>{/snippet}
+  </Modal>
+{/if}
+{#if formStep}
+  <Modal title="New {formStep.tpl.name}" wide onclose={() => { if (confirm('Close without creating the page?')) formStep = null; }}>
+    <div class="grid2">
+      <div class="field" class:error={formErrors && !formStep.title.trim()}><label for="nf-t">Title<span class="req">*</span></label><input id="nf-t" maxlength="150" bind:value={formStep.title} /></div>
+      <div class="field"><label for="nf-p">Parent page</label>
+        <select id="nf-p" bind:value={formStep.parent}>{#each allPages as x}<option value={x.id}>{x.id === tree.home ? x.title + ' (top level)' : x.title}</option>{/each}</select></div>
+    </div>
+    <PageFormEditor layout={formStep.layout} fields={formStep.fields} bind:values={formStep.values} title={formStep.title} bind:body={formBody} bind:miss={formMiss} showErrors={formErrors} />
+    {#snippet footer()}
+      <span class="muted small" style="margin-right: auto">{formMiss.length ? formMiss.length + (formMiss.length === 1 ? ' required field left' : ' required fields left') : 'All required fields are filled in.'}</span>
+      <button onclick={() => (formStep = null)}>Cancel</button>
+      <button class="primary" onclick={createFromForm}>Create</button>
+    {/snippet}
   </Modal>
 {/if}
 {#if moveFor}
@@ -233,4 +282,5 @@
   .tpl { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 1px solid var(--line2); border-radius: 4px; font-weight: 400; color: var(--text); font-size: 12.5px; cursor: pointer; margin: 0; }
   .tpl.on { border-color: var(--on-line); background: var(--accent-soft); }
   .tpl input { margin-top: 3px; }
+  .req { color: var(--err); margin-left: 2px; }
 </style>

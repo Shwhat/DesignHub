@@ -2,6 +2,15 @@
 
 The installed version is shown at the top of this guide.
 
+## 2.1.0 (2026-11-17): Form pages
+
+- Templates can have form fields: text, long text, date, person, people, dropdown, toggle, record, list and table, each optionally required.
+- A new page from a form template opens the form, with the page generated live below it in Preview and Markdown views. The page is created only when the required fields are filled in.
+- Editing a form page opens the same form. "Edit as text" removes the form and keeps the text.
+- Pages stay markdown files. The form answers are kept in the page file so the form can be reopened.
+- Admin, Templates has a field builder with Insert and "Preview the form".
+- The six templates that come with DesignHub now have forms. Templates changed since installation are left as they are.
+
 ## 2.0.1 (2026-11-17): Saving fixed after the nightly backup
 
 - Fixed: after the nightly backup, saving pages and engineering items, and creating new ones, failed with "Something went wrong" until the server was restarted. No data was lost.

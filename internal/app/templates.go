@@ -2,11 +2,15 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"designhub/internal/model"
 )
 
 // Page templates (DATA-MODEL.md 7.25). A template is company-wide (empty
@@ -14,66 +18,220 @@ import (
 // reference to it; later template changes do not change existing pages.
 
 type Template struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Space        string    `json:"space"`
-	Description  string    `json:"description"`
-	PageType     string    `json:"pageType"`
-	TitlePattern string    `json:"titlePattern"`
-	Body         string    `json:"body"`
-	Active       bool      `json:"active"`
-	ChangedBy    string    `json:"changedBy"`
-	ChangedAt    time.Time `json:"changedAt"`
-	Version      int       `json:"version"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Space        string            `json:"space"`
+	Description  string            `json:"description"`
+	PageType     string            `json:"pageType"`
+	TitlePattern string            `json:"titlePattern"`
+	Body         string            `json:"body"`
+	Form         []model.FormField `json:"form"`
+	Active       bool              `json:"active"`
+	ChangedBy    string            `json:"changedBy"`
+	ChangedAt    time.Time         `json:"changedAt"`
+	Version      int               `json:"version"`
 }
 
-const templateSelect = `SELECT t.id, t.name, t.space_id, t.description, t.page_type, t.title_pattern, t.body, t.active,
+const templateSelect = `SELECT t.id, t.name, t.space_id, t.description, t.page_type, t.title_pattern, t.body, t.form, t.active,
 	COALESCE(us.display_name, 'DesignHub'), t.changed_at, t.version FROM templates t LEFT JOIN users us ON us.id = t.changed_by`
 
 func scanTemplate(row pgx.Row) (*Template, error) {
 	t := &Template{}
-	err := row.Scan(&t.ID, &t.Name, &t.Space, &t.Description, &t.PageType, &t.TitlePattern, &t.Body, &t.Active, &t.ChangedBy, &t.ChangedAt, &t.Version)
+	var form []byte
+	err := row.Scan(&t.ID, &t.Name, &t.Space, &t.Description, &t.PageType, &t.TitlePattern, &t.Body, &form, &t.Active, &t.ChangedBy, &t.ChangedAt, &t.Version)
+	json.Unmarshal(form, &t.Form)
+	if t.Form == nil {
+		t.Form = []model.FormField{}
+	}
 	return t, err
+}
+
+// Field helpers for the initial templates.
+func fText(key, label, help string, req bool) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "text", Help: help, Required: req}
+}
+func fArea(key, label, help string, req bool) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "textarea", Help: help, Required: req}
+}
+func fDate(key, label string) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "date", Default: "{date}", Required: true}
+}
+func fMe(key, label string) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "user", Default: "{user}", Required: true}
+}
+func fSelect(key, label, def string, req bool, options ...string) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "select", Default: def, Required: req, Options: options}
+}
+func fRecord(key, label, kinds, help string, req bool) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "record", Kinds: kinds, Help: help, Required: req}
+}
+func fList(key, label, help string, req bool) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "list", Help: help, Required: req}
+}
+func fTable(key, label, help string, req bool, cols ...model.FormField) model.FormField {
+	return model.FormField{Key: key, Label: label, Type: "table", Help: help, Required: req, Columns: cols}
 }
 
 var initialTemplates = []Template{
 	{Name: "Design review", PageType: "Design review", TitlePattern: "Design review {date}",
 		Description: "Review of a design against its requirements, with findings and actions.",
-		Body:        "# {title}\n\n| | |\n|---|---|\n| Date | {date} |\n| Facilitator | {user} |\n| Space | {space} |\n\n## Scope\n\nAssembly or item under review.\n\n## Attendees\n\n- \n\n## Requirements checked\n\n| Requirement | Result | Notes |\n|---|---|---|\n| | | |\n\n## Findings\n\n| # | Finding | Severity | Action |\n|---|---|---|---|\n| 1 | | | |\n\n## Decision\n\nApproved, approved with actions, or not approved.\n"},
+		Body: "# {title}\n\n| | |\n|---|---|\n| Date | {{date}} |\n| Facilitator | {{facilitator}} |\n| Space | {space} |\n\n## Scope\n\n{{scope}}\n\n{{scope-notes}}\n\n" +
+			"## Attendees\n\n{{attendees}}\n\n## Requirements checked\n\n{{requirements}}\n\n## Findings\n\n{{findings}}\n\n## Decision\n\n{{decision}}\n\n{{decision-notes}}\n\nFollow-up review needed: {{follow-up}}\n",
+		Form: []model.FormField{
+			fDate("date", "Date"),
+			fMe("facilitator", "Facilitator"),
+			fRecord("scope", "Item under review", "part,assembly,requirement,procedure,document", "Assembly or item under review.", true),
+			fArea("scope-notes", "Scope notes", "What part of the design is covered.", false),
+			{Key: "attendees", Label: "Attendees", Type: "users", Required: true},
+			fTable("requirements", "Requirements checked", "", true,
+				fRecord("requirement", "Requirement", "requirement", "", true),
+				fSelect("result", "Result", "", true, "Met", "Partly met", "Not met", "Not checked"),
+				fText("notes", "Notes", "", false)),
+			fTable("findings", "Findings", "", false,
+				model.FormField{Key: "n", Label: "#", Type: "index"},
+				fText("finding", "Finding", "", true),
+				fSelect("severity", "Severity", "", true, "Critical", "Major", "Minor", "Observation"),
+				fText("action", "Action", "", false)),
+			fSelect("decision", "Decision", "", true, "Approved", "Approved with actions", "Not approved"),
+			fArea("decision-notes", "Decision notes", "Conditions or reasons for the decision.", false),
+			{Key: "follow-up", Label: "Follow-up review needed", Type: "toggle"},
+		}},
 	{Name: "Test report", PageType: "Test report", TitlePattern: "Test report {date}",
 		Description: "Results of a test run against a procedure.",
-		Body:        "# {title}\n\n| | |\n|---|---|\n| Date | {date} |\n| Tested by | {user} |\n| Procedure | |\n| Item and serial | |\n\n## Setup\n\nEquipment and conditions.\n\n## Results\n\n| Step | Expected | Measured | Pass or fail |\n|---|---|---|---|\n| | | | |\n\n## Nonconformances\n\nList any NCRs raised.\n\n## Conclusion\n\n"},
+		Body: "# {title}\n\n| | |\n|---|---|\n| Date | {{date}} |\n| Tested by | {{tested-by}} |\n| Procedure | {{procedure}} |\n| Item | {{item}} |\n| Serial | {{serial}} |\n\n" +
+			"## Setup\n\n{{setup}}\n\n## Results\n\n{{results}}\n\n## Nonconformances\n\n{{ncrs}}\n\n## Conclusion\n\n{{overall}}\n\n{{conclusion}}\n",
+		Form: []model.FormField{
+			fDate("date", "Date"),
+			fMe("tested-by", "Tested by"),
+			fRecord("procedure", "Procedure", "procedure", "", true),
+			fRecord("item", "Item", "part,assembly", "", true),
+			fText("serial", "Serial", "", false),
+			fArea("setup", "Setup", "Equipment and conditions.", true),
+			fTable("results", "Results", "", true,
+				model.FormField{Key: "step", Label: "Step", Type: "index"},
+				fText("expected", "Expected", "", true),
+				fText("measured", "Measured", "", true),
+				fSelect("result", "Pass or fail", "", true, "Pass", "Fail")),
+			fTable("ncrs", "Nonconformances", "NCRs raised during the test.", false,
+				fRecord("ncr", "NCR", "ncr", "", true),
+				fText("notes", "Notes", "", false)),
+			fSelect("overall", "Overall result", "", true, "Pass", "Pass with deviations", "Fail"),
+			fArea("conclusion", "Conclusion", "", false),
+		}},
 	{Name: "Meeting notes", PageType: "Meeting notes", TitlePattern: "Meeting notes {date}",
 		Description: "Agenda, notes, decisions and actions of a meeting.",
-		Body:        "# {title}\n\n| | |\n|---|---|\n| Date | {date} |\n| Notes by | {user} |\n\n## Attendees\n\n- \n\n## Agenda\n\n1. \n\n## Notes\n\n## Decisions\n\n- \n\n## Actions\n\n| Action | Owner | Due |\n|---|---|---|\n| | | |\n"},
+		Body: "# {title}\n\n| | |\n|---|---|\n| Date | {{date}} |\n| Notes by | {{notes-by}} |\n\n## Attendees\n\n{{attendees}}\n\n## Agenda\n\n{{agenda}}\n\n" +
+			"## Notes\n\n{{notes}}\n\n## Decisions\n\n{{decisions}}\n\n## Actions\n\n{{actions}}\n",
+		Form: []model.FormField{
+			fDate("date", "Date"),
+			fMe("notes-by", "Notes by"),
+			{Key: "attendees", Label: "Attendees", Type: "users", Required: true},
+			fList("agenda", "Agenda", "", true),
+			fArea("notes", "Notes", "", false),
+			fList("decisions", "Decisions", "", false),
+			fTable("actions", "Actions", "", false,
+				fText("action", "Action", "", true),
+				model.FormField{Key: "owner", Label: "Owner", Type: "user", Required: true},
+				model.FormField{Key: "due", Label: "Due", Type: "date"}),
+		}},
 	{Name: "Work instruction", PageType: "General", TitlePattern: "Work instruction: ",
 		Description: "Step-by-step instruction for building or installing an item.",
-		Body:        "# {title}\n\n| | |\n|---|---|\n| Written by | {user} |\n| Date | {date} |\n| Item | |\n\n## Safety\n\n## Tools and materials\n\n- \n\n## Steps\n\n1. \n\n## Checks\n\n- \n"},
+		Body: "# {title}\n\n| | |\n|---|---|\n| Written by | {{written-by}} |\n| Date | {{date}} |\n| Item | {{item}} |\n| Lockout and tagout required | {{loto}} |\n\n" +
+			"## Safety\n\n{{safety}}\n\n## Tools and materials\n\n{{tools}}\n\n## Steps\n\n{{steps}}\n\n## Checks\n\n{{checks}}\n",
+		Form: []model.FormField{
+			fMe("written-by", "Written by"),
+			fDate("date", "Date"),
+			fRecord("item", "Item", "part,assembly", "", true),
+			{Key: "loto", Label: "Lockout and tagout required", Type: "toggle"},
+			fArea("safety", "Safety", "Hazards and protective equipment.", true),
+			fList("tools", "Tools and materials", "", true),
+			fTable("steps", "Steps", "", true,
+				model.FormField{Key: "n", Label: "Step", Type: "index"},
+				fText("instruction", "Instruction", "", true),
+				fText("check", "Acceptance", "", false)),
+			fList("checks", "Checks", "Checks after the last step.", false),
+		}},
 	{Name: "Procedure", PageType: "General", TitlePattern: "Procedure: ",
 		Description: "A repeatable process with purpose, steps and records.",
-		Body:        "# {title}\n\n| | |\n|---|---|\n| Owner | {user} |\n| Date | {date} |\n\n## Purpose\n\n## Scope\n\n## Responsibilities\n\n## Steps\n\n1. \n\n## Records\n\n"},
+		Body: "# {title}\n\n| | |\n|---|---|\n| Owner | {{owner}} |\n| Date | {{date}} |\n\n## Purpose\n\n{{purpose}}\n\n## Scope\n\n{{scope}}\n\n" +
+			"## Responsibilities\n\n{{responsibilities}}\n\n## Steps\n\n{{steps}}\n\n## Records\n\n{{records}}\n",
+		Form: []model.FormField{
+			fMe("owner", "Owner"),
+			fDate("date", "Date"),
+			fArea("purpose", "Purpose", "", true),
+			fArea("scope", "Scope", "", true),
+			fTable("responsibilities", "Responsibilities", "", true,
+				fText("role", "Role", "", true),
+				fText("responsibility", "Responsibility", "", true)),
+			fTable("steps", "Steps", "", true,
+				model.FormField{Key: "n", Label: "Step", Type: "index"},
+				fText("step", "Step", "", true),
+				fText("by", "Responsible", "", false)),
+			fList("records", "Records", "Records kept when the procedure is followed.", false),
+		}},
 	{Name: "Decision record", PageType: "Decision record", TitlePattern: "Decision: ",
 		Description: "A decision with its context, options and consequences.",
-		Body:        "# {title}\n\n| | |\n|---|---|\n| Date | {date} |\n| Decided by | {user} |\n| Status | Proposed |\n\n## Context\n\n## Options considered\n\n| Option | For | Against |\n|---|---|---|\n| | | |\n\n## Decision\n\n## Consequences\n\n"},
+		Body: "# {title}\n\n| | |\n|---|---|\n| Date | {{date}} |\n| Decided by | {{decided-by}} |\n| Status | {{status}} |\n\n## Context\n\n{{context}}\n\n" +
+			"## Options considered\n\n{{options}}\n\n## Decision\n\n{{decision}}\n\n## Consequences\n\n{{consequences}}\n",
+		Form: []model.FormField{
+			fDate("date", "Date"),
+			fMe("decided-by", "Decided by"),
+			fSelect("status", "Status", "Proposed", true, "Proposed", "Accepted", "Rejected", "Superseded"),
+			fArea("context", "Context", "", true),
+			fTable("options", "Options considered", "", true,
+				fText("option", "Option", "", true),
+				fText("for", "For", "", false),
+				fText("against", "Against", "", false)),
+			fArea("decision", "Decision", "", true),
+			fArea("consequences", "Consequences", "", false),
+		}},
+}
+
+// formJSON encodes a field list for the form column.
+func formJSON(f []model.FormField) []byte {
+	if f == nil {
+		f = []model.FormField{}
+	}
+	b, _ := json.Marshal(f)
+	return b
 }
 
 // ensureTemplates creates the initial company-wide templates on first start.
+// On an existing installation it gives the initial templates their forms,
+// but only those never changed since they were created.
 func (a *App) ensureTemplates(ctx context.Context) error {
 	var n int
-	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM templates`).Scan(&n); err != nil || n > 0 {
+	if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM templates`).Scan(&n); err != nil {
 		return err
 	}
 	return a.tx(ctx, func(tx pgx.Tx) error {
 		for _, t := range initialTemplates {
+			if n > 0 {
+				var id string
+				var version int
+				err := tx.QueryRow(ctx, `UPDATE templates SET body = $2, form = $3, changed_at = now(), version = version + 1
+					WHERE name = $1 AND space_id = '' AND version = 1 AND changed_by IS NULL AND form = '[]'::jsonb RETURNING id, version`,
+					t.Name, t.Body, formJSON(t.Form)).Scan(&id, &version)
+				if err == pgx.ErrNoRows {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				if _, err := tx.Exec(ctx, `INSERT INTO template_versions (template_id, version, body, form) VALUES ($1, $2, $3, $4)`, id, version, t.Body, formJSON(t.Form)); err != nil {
+					return err
+				}
+				continue
+			}
 			id, err := a.nextPrefixed(ctx, tx, "TPL", "template", "")
 			if err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO templates (id, name, description, page_type, title_pattern, body) VALUES ($1, $2, $3, $4, $5, $6)`,
-				id, t.Name, t.Description, t.PageType, t.TitlePattern, t.Body); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO templates (id, name, description, page_type, title_pattern, body, form) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+				id, t.Name, t.Description, t.PageType, t.TitlePattern, t.Body, formJSON(t.Form)); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO template_versions (template_id, version, body) VALUES ($1, 1, $2)`, id, t.Body); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO template_versions (template_id, version, body, form) VALUES ($1, 1, $2, $3)`, id, t.Body, formJSON(t.Form)); err != nil {
 				return err
 			}
 		}
@@ -81,8 +239,24 @@ func (a *App) ensureTemplates(ctx context.Context) error {
 	})
 }
 
+var placeholder = regexp.MustCompile(`\{?\{(date|user|space|title)\}\}?`)
+
+// fillPlaceholders fills {date}, {user}, {space} and {title}. Form field
+// tokens such as {{date}} are left alone.
 func fillPlaceholders(s string, u *User, space, title string) string {
-	return strings.NewReplacer("{date}", time.Now().Format("2006-01-02"), "{user}", u.DisplayName, "{space}", space, "{title}", title).Replace(s)
+	vals := map[string]string{"date": time.Now().Format("2006-01-02"), "user": u.DisplayName, "space": space, "title": title}
+	return placeholder.ReplaceAllStringFunc(s, func(m string) string {
+		if strings.HasPrefix(m, "{{") || strings.HasSuffix(m, "}}") {
+			return m
+		}
+		return vals[strings.Trim(m, "{}")]
+	})
+}
+
+// fillLayout fills the placeholders of a form layout except {title}, which
+// the page fills from its current title each time the body is generated.
+func fillLayout(s string, u *User, space string) string {
+	return fillPlaceholders(s, u, space, "{title}")
 }
 
 // templateFor returns an active template that may be used in a space.
@@ -151,14 +325,15 @@ func (a *App) apiTemplate(w http.ResponseWriter, r *http.Request) error {
 }
 
 type templateInput struct {
-	Name         *string `json:"name"`
-	Space        *string `json:"space"`
-	Description  *string `json:"description"`
-	PageType     *string `json:"pageType"`
-	TitlePattern *string `json:"titlePattern"`
-	Body         *string `json:"body"`
-	Active       *bool   `json:"active"`
-	Version      int     `json:"version"`
+	Name         *string            `json:"name"`
+	Space        *string            `json:"space"`
+	Description  *string            `json:"description"`
+	PageType     *string            `json:"pageType"`
+	TitlePattern *string            `json:"titlePattern"`
+	Body         *string            `json:"body"`
+	Form         *[]model.FormField `json:"form"`
+	Active       *bool              `json:"active"`
+	Version      int                `json:"version"`
 }
 
 func (a *App) applyTemplateInput(ctx context.Context, t *Template, in *templateInput) error {
@@ -187,6 +362,20 @@ func (a *App) applyTemplateInput(ctx context.Context, t *Template, in *templateI
 	}
 	if strings.TrimSpace(t.Body) == "" {
 		return badRequest("The template body is required.")
+	}
+	if in.Form != nil {
+		t.Form = *in.Form
+	}
+	if t.Form == nil {
+		t.Form = []model.FormField{}
+	}
+	for i := range t.Form {
+		t.Form[i].Label = strings.TrimSpace(t.Form[i].Label)
+	}
+	if len(t.Form) > 0 {
+		if err := model.ValidateFields(t.Form, t.Body); err != nil {
+			return badRequest("%s.", err.Error())
+		}
 	}
 	if in.Active != nil {
 		t.Active = *in.Active
@@ -221,11 +410,11 @@ func (a *App) apiCreateTemplate(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 		t.ID = id
-		if _, err := tx.Exec(ctx, `INSERT INTO templates (id, name, space_id, description, page_type, title_pattern, body, active, changed_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, id, t.Name, t.Space, t.Description, t.PageType, t.TitlePattern, t.Body, t.Active, u.ID); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO templates (id, name, space_id, description, page_type, title_pattern, body, form, active, changed_by)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, id, t.Name, t.Space, t.Description, t.PageType, t.TitlePattern, t.Body, formJSON(t.Form), t.Active, u.ID); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO template_versions (template_id, version, body, changed_by) VALUES ($1, 1, $2, $3)`, id, t.Body, u.ID); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO template_versions (template_id, version, body, form, changed_by) VALUES ($1, 1, $2, $3, $4)`, id, t.Body, formJSON(t.Form), u.ID); err != nil {
 			return err
 		}
 		a.auditQ(ctx, tx, u, clientIP(r), "template.create", id, map[string]string{"name": t.Name, "space": t.Space})
@@ -254,17 +443,17 @@ func (a *App) apiUpdateTemplate(w http.ResponseWriter, r *http.Request) error {
 	if in.Version != 0 && in.Version != t.Version {
 		return conflict("Someone changed this template after you opened it. Reload to see their changes.", nil)
 	}
-	oldBody := t.Body
+	oldBody, oldForm := t.Body, string(formJSON(t.Form))
 	if err := a.applyTemplateInput(ctx, t, &in); err != nil {
 		return err
 	}
 	err = a.tx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE templates SET name = $2, description = $3, page_type = $4, title_pattern = $5, body = $6, active = $7, changed_by = $8,
-			changed_at = now(), version = version + 1 WHERE id = $1`, t.ID, t.Name, t.Description, t.PageType, t.TitlePattern, t.Body, t.Active, u.ID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE templates SET name = $2, description = $3, page_type = $4, title_pattern = $5, body = $6, form = $9, active = $7, changed_by = $8,
+			changed_at = now(), version = version + 1 WHERE id = $1`, t.ID, t.Name, t.Description, t.PageType, t.TitlePattern, t.Body, t.Active, u.ID, formJSON(t.Form)); err != nil {
 			return err
 		}
-		if t.Body != oldBody {
-			if _, err := tx.Exec(ctx, `INSERT INTO template_versions (template_id, version, body, changed_by) VALUES ($1, $2, $3, $4)`, t.ID, t.Version+1, t.Body, u.ID); err != nil {
+		if t.Body != oldBody || string(formJSON(t.Form)) != oldForm {
+			if _, err := tx.Exec(ctx, `INSERT INTO template_versions (template_id, version, body, form, changed_by) VALUES ($1, $2, $3, $4, $5)`, t.ID, t.Version+1, t.Body, formJSON(t.Form), u.ID); err != nil {
 				return err
 			}
 		}

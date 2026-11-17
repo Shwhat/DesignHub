@@ -88,6 +88,14 @@ func Required(it *Item) []Issue {
 		req("documentType", it.DocumentType, "Document type")
 	case TypePage:
 		req("pageType", it.PageType, "Page type")
+		if it.Form != nil {
+			if err := ValidateFields(it.Form.Fields, ""); err != nil {
+				out = append(out, errorf(it.ID, "form", "%s", err.Error()))
+			}
+			for _, m := range it.Form.Missing() {
+				out = append(out, errorf(it.ID, "form", "%s", m))
+			}
+		}
 	default:
 		out = append(out, errorf(it.ID, "type", "Unknown type %q", it.Type))
 	}
