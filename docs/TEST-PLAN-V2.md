@@ -205,11 +205,21 @@ The version 1 seed data set (TEST-PLAN.md Appendix A) plus the additions in Appe
 | ID | Check | Expected | Priority |
 |---|---|---|---|
 | TPL-01 | New page in SP-0001 | Picker lists Blank page and the six initial templates | Must |
-| TPL-02 | Create a page from Meeting notes | Page type Meeting notes. {date}, {user}, {space} filled. Title from the pattern. | Must |
+| TPL-02 | Create a page from Meeting notes | The form opens with Date and Notes by filled in. Page type Meeting notes. Title from the pattern. | Must |
 | TPL-03 | `admin1` creates a template scoped to SP-0002 | Offered in SP-0002 only | Must |
 | TPL-04 | Edit the Meeting notes template | Existing pages unchanged; new pages use the new body | Must |
 | TPL-05 | Template with a live Bill of Design block | New page shows the live block | Should |
 | TPL-06 | Deactivate a template | No longer offered | Must |
+| TPL-07 | New page from Design review | Next opens the form. The page below updates as fields change. Preview and Markdown tabs both show it. | Must |
+| TPL-08 | Create the Design review with Attendees and Decision empty | Not created. The fields are highlighted and listed. The footer counts the fields left. | Must |
+| TPL-09 | Fill in the Design review: item, two attendees (one typed name), a requirement row, a finding, a decision, follow-up on | Page created. Item and requirement are links. Attendees a list. Findings a numbered table. Follow-up reads Yes. | Must |
+| TPL-10 | Edit the page, change the decision, save | The form opens with the saved answers. The page shows the new decision. History shows the change. | Must |
+| TPL-11 | Edit, clear Attendees, save | Save refused with the field highlighted | Must |
+| TPL-12 | Edit, Edit as text, change a line, save | The text editor opens. The Form label is gone after saving. | Must |
+| TPL-13 | Admin, Templates: add a Dropdown field to a copy of Design review without placing it in the body, save | Refused: the field is not placed in the layout | Must |
+| TPL-14 | Insert the field, Preview the form | The token is added to the body. The preview shows the form and the page. | Must |
+| TPL-15 | Open the form of each of the six initial templates | Each opens with its fields; required fields marked | Should |
+| TPL-16 | Open a form page's file in the repository | Body is plain markdown; the form answers are under `form` in the frontmatter | Should |
 
 ### 6.12 Inline comments (ICM)
 

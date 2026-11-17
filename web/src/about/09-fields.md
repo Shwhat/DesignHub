@@ -104,6 +104,7 @@ Purchased parts add:
 | Body | Long text | No | May contain live blocks |
 | Owner | User | Yes | |
 | Template | Template | No | Set when the page is created from a template |
+| Form | Layout, fields and values | No | Pages created from a template with form fields. The body is generated from the form. "Edit as text" removes it. |
 
 ## Change order
 
@@ -195,8 +196,29 @@ With an edited NCR workflow, the state requirements above follow the workflow; t
 | Description | Text | No | Shown in the New page dialog |
 | Page type | Choice | Yes | |
 | Title pattern | Text | No | For example "Design review {date}" |
-| Body | Long text | Yes | Placeholders {date}, {user}, {space} and {title} are filled when the page is created |
+| Body | Long text | Yes | Placeholders {date}, {user}, {space} and {title} are filled when the page is created. With form fields, {{key}} marks where each field goes. |
+| Form fields | List | No | Key, label, type, required, choices, default, help text, record types, table columns |
 | Active | Yes/No | Yes | |
+
+### Form fields
+
+| Type | In the form | In the page |
+|---|---|---|
+| Text | One line | As typed |
+| Long text | Several lines | Paragraphs |
+| Date | Date picker | YYYY-MM-DD |
+| Person | Name, chosen from users or typed | Name |
+| People | Names added one at a time | Bulleted list, or names joined with commas inside other text |
+| Dropdown | One of the template's choices | The choice |
+| Toggle | Checkbox | Yes or No |
+| Record | Search by ID or title | [[ID]] Title, linked |
+| List | Items added one at a time | Bulleted list, or items joined with commas inside other text |
+| Table | Rows with typed columns, added, moved and removed | Markdown table. Empty rows are left out. |
+
+- Every field must appear in the body as {{key}}, and every {{key}} must name a field. A table must be on a line of its own.
+- An empty list, people or table field is written as "None."
+- A required field must be filled in, a required toggle must be on, and a required table needs at least one row with its required columns filled in.
+- A page keeps the layout and fields it was created with. Later changes to the template do not change it.
 
 ## Link types
 

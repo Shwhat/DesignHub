@@ -760,6 +760,12 @@ func (a *App) writeRecord(ctx context.Context, u *User, ip string, e *entry, co 
 		if it.Controlled == "" {
 			it.Controlled = prev.Controlled
 		}
+		// The form's layout and fields come from the template; editing
+		// changes only the values. Removing the form ("Edit as text") is
+		// allowed.
+		if it.Form != nil && prev.Form != nil {
+			it.Form.Layout, it.Form.Fields = prev.Form.Layout, prev.Form.Fields
+		}
 	}
 	if it.Kind == model.KindCOTS {
 		it.Manufacturer, it.OrderNumber = prev.Manufacturer, prev.OrderNumber

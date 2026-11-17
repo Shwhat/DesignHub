@@ -1,6 +1,6 @@
 # DesignHub Handoff
 
-Date: 2026-11-02 (version 2 merged)
+Date: 2026-11-17 (page forms, version 2.1.0, in review)
 Purpose: everything needed to continue DesignHub in a new conversation. This document replaces all earlier handoff documents.
 
 ## Start here
@@ -58,6 +58,7 @@ All documents and code are on `main`.
 | 13. Version 2 documents: data model, screens, test plan | Complete (PR #9) |
 | 14. Build version 2 on branch `v2-build`, one pull request at the end | Complete (PR #10). Email not built (mail server undecided). |
 | 15. Devon tests version 2 with TEST-PLAN-V2.md | Not started |
+| 16. Page forms: templates with form fields, page generated live from the form | Built on branch `page-forms` (PR #13), in review |
 
 ## Pull request history
 
@@ -73,6 +74,7 @@ All documents and code are on `main`.
 | #8 | Restyle to match OpenSchem (bug 3), version 1.2.1 | 2026-11-02 |
 | #9 | Version 2 data model, screens and test plan | 2026-11-02 |
 | #10 | Version 2, version 2.0.0 | 2026-11-02 |
+| #13 | Page forms, version 2.1.0 | Open |
 
 The GitHub Actions "Docker image" workflow succeeded for the PR #4 merge commit (`62238d1`), so `ghcr.io/shwhat/designhub:latest` contains the fixes.
 
@@ -254,6 +256,49 @@ Verification for PR #10:
 - `go vet` clean. All Go tests pass against PostgreSQL, including the new v2 tests.
 - `svelte-check`: 0 errors, 0 warnings.
 - No frontend build, no browser run and no Gotenberg run, because no build has been approved. The screens and PDF export are therefore unverified in a browser.
+
+## Page forms (branch `page-forms`, version 2.1.0)
+
+Requested by Devon on 2026-11-17: pages from a template are filled in through a form with dropdowns and toggles instead of typed by hand, required fields are enforced, and the markdown is generated live below the form. Design review was the example; the other five initial templates follow the same pattern.
+
+Decisions made with Devon on 2026-11-17:
+
+| Question | Decision |
+|---|---|
+| Editing a form page later | The form stays the editor. Values are kept in the page file. "Edit as text" removes the form and keeps the body. |
+| Who defines the fields | Admins, per template, in Admin, Templates. The six initial templates come with forms. |
+
+Implementation:
+
+| Part | Where |
+|---|---|
+| Field and page form model, validation, required check | `internal/model/form.go`, `Item.Form` in `item.go`, `Required` in `validate.go` |
+| Template `form` column | `internal/db/migrations/0005_page_forms.sql` |
+| Template storage, field validation against the layout, initial forms, upgrade of unchanged initial templates | `internal/app/templates.go` |
+| Page creation with values | `apiCreatePage` in `internal/app/pages.go` |
+| Layout and fields kept on save | `writeRecord` in `internal/app/items.go` |
+| Markdown generator, defaults, required check | `web/src/lib/forms.ts` |
+| Form controls | `web/src/components/FormFill.svelte` |
+| Form with live Preview and Markdown | `web/src/components/PageFormEditor.svelte` |
+| New page step 2 | `web/src/components/Sidebar.svelte` |
+| Editing a form page, Edit as text | `web/src/pages/PageView.svelte` |
+| Field builder and form preview | `web/src/components/FormFieldsEditor.svelte`, `TemplatesAdmin.svelte` |
+| Tests | `internal/model/form_test.go`; `TestTemplatePage` and `TestTemplateFormsUpgrade` in `internal/app/v2_test.go` |
+
+Behavior notes:
+
+- The body is the layout with `{{key}}` tokens. A token alone on a line is written as a block (list, table, paragraphs); inside other text it is written on one line. Placeholders `{date}`, `{user}`, `{space}` are filled at creation; `{title}` is filled from the current title each time the body is generated.
+- The markdown is generated in the browser. The server stores the body as sent and checks the required fields against the stored values (`PageForm.Missing`), on create and on every save.
+- On save the server keeps the page's layout and fields and takes only the values, so a page keeps the form it was created with.
+- On start, initial templates still at version 1 with no changes (`changed_by` empty) get their forms and new bodies. Any template edited by an Admin is left alone.
+- Field keys use lowercase letters, digits and hyphens so the visual editor does not escape them.
+
+Verification:
+
+- `go vet` clean. All Go tests pass against PostgreSQL, including the new form tests.
+- `svelte-check`: 0 errors, 0 warnings.
+- The generator was run under Node against the Design review form with sample values.
+- No frontend build and no browser run, per project rules. The new screens are unverified in a browser.
 
 ## Google sign-in (branch `google-signin`)
 

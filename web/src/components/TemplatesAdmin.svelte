@@ -4,6 +4,9 @@
   import { dateTime } from '../lib/format';
   import { listOf, loadLists } from '../lib/lists.svelte';
   import Editor from './Editor.svelte';
+  import FormFieldsEditor from './FormFieldsEditor.svelte';
+  import PageFormEditor from './PageFormEditor.svelte';
+  import { fill, initialValues, today, type FormField } from '../lib/forms';
 
   // Admin, Templates, and the same table for one space's Admins.
   let { space = '' }: { space?: string } = $props();
@@ -18,15 +21,18 @@
   load();
   async function open(t: any) {
     const r = await get('/api/templates/' + t.id);
-    edit = { ...r.template, canEdit: r.canEdit };
+    edit = { ...r.template, form: r.template.form || [], canEdit: r.canEdit };
+    preview = null;
   }
   function create() {
-    edit = { id: '', name: '', space, description: '', pageType: 'General', titlePattern: '', body: '# {title}\n\n', active: true, canEdit: true, version: 0 };
+    edit = { id: '', name: '', space, description: '', pageType: 'General', titlePattern: '', body: '# {title}\n\n', form: [], active: true, canEdit: true, version: 0 };
+    preview = null;
   }
   async function save() {
     try {
-      if (edit.id) await patch('/api/templates/' + edit.id, { ...edit });
-      else await post('/api/templates', { ...edit });
+      const body = { ...$state.snapshot(edit), form: clean(edit.form) };
+      if (edit.id) await patch('/api/templates/' + edit.id, body);
+      else await post('/api/templates', body);
       toast('Template saved.');
       edit = null;
       load();
@@ -35,6 +41,22 @@
   async function copy(t: any) {
     const r = await get('/api/templates/' + t.id);
     edit = { ...r.template, id: '', name: r.template.name + ' (copy)', space, canEdit: true, version: 0 };
+  }
+  // clean drops empty choices and editor-only marks before saving.
+  function clean(fields: FormField[]): FormField[] {
+    return ($state.snapshot(fields) as any[]).map(({ _new, ...f }) => ({
+      ...f,
+      label: (f.label || '').trim(),
+      ...(f.options ? { options: f.options.map((o: string) => o.trim()).filter(Boolean) } : {}),
+      ...(f.columns ? { columns: clean(f.columns) } : {}),
+    }));
+  }
+  // Preview of the form with sample context.
+  let preview: { values: Record<string, any>; fields: FormField[]; body: string; miss: any[] } | null = $state(null);
+  const ctx = () => ({ date: today(), user: session.me?.displayName || '', space: spaceLabel(edit?.space || '') });
+  function tryForm() {
+    const fields = clean(edit.form);
+    preview = { fields, values: initialValues(fields, ctx()), body: '', miss: [] };
   }
   const spaces = $derived(session.me?.spaces || []);
   const spaceLabel = (id: string) => (id ? spaces.find((s) => s.id === id)?.name || id : 'All spaces');
@@ -60,7 +82,15 @@
       <span class="muted">Placeholders, filled when a page is created:</span>
       {#each ['{date}', '{user}', '{space}', '{title}'] as p}<button class="small" disabled={!edit.canEdit} onclick={() => (edit.body += p)}>{p}</button>{/each}
     </div>
+    {#if edit.form.length}<p class="small muted" style="margin: 0 0 4px">With form fields, the body is the layout: {'{{key}}'} marks where each field goes. A list, people or table field on a line of its own is written as a list or table.</p>{/if}
     {#if edit.canEdit}<Editor bind:value={edit.body} recordId="" />{:else}<pre class="markdown">{edit.body}</pre>{/if}
+    <h3 style="margin: 14px 0 6px">Form fields</h3>
+    <p class="small muted" style="margin: 0 0 6px">Fields are filled in when a page is created and when it is edited. Required fields must be filled in before the page can be saved.</p>
+    <FormFieldsEditor bind:fields={edit.form} disabled={!edit.canEdit} oninsert={(t) => (edit.body = edit.body.replace(/\n*$/, '') + '\n\n' + t + '\n')} />
+    {#if edit.form.length}
+      <div class="row" style="margin: 10px 0 6px"><button onclick={() => (preview ? (preview = null) : tryForm())}>{preview ? 'Hide form preview' : 'Preview the form'}</button>{#if preview}<button onclick={tryForm}>Reset preview</button>{/if}</div>
+      {#if preview}<PageFormEditor layout={fill(edit.body, ctx())} fields={preview.fields} bind:values={preview.values} title={fill(edit.titlePattern || edit.name, ctx())} bind:body={preview.body} bind:miss={preview.miss} />{/if}
+    {/if}
     <p class="small muted">Changing a template does not change pages already created from it.</p>
   </div>
 {:else}

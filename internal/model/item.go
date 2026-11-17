@@ -121,12 +121,13 @@ type Item struct {
 	ExternalRef  string `yaml:"external_ref,omitempty" json:"externalRef,omitempty"`
 
 	// Page
-	Parent       string `yaml:"parent,omitempty" json:"parent,omitempty"`
-	Sort         int    `yaml:"sort,omitempty" json:"sort,omitempty"`
-	PageType     string `yaml:"page_type,omitempty" json:"pageType,omitempty"`
-	Template     string `yaml:"template,omitempty" json:"template,omitempty"`
-	Controlled   string `yaml:"controlled,omitempty" json:"controlled,omitempty"` // default, yes, no
-	ReleasedOnly bool   `yaml:"released_only,omitempty" json:"releasedOnly,omitempty"`
+	Parent       string    `yaml:"parent,omitempty" json:"parent,omitempty"`
+	Sort         int       `yaml:"sort,omitempty" json:"sort,omitempty"`
+	PageType     string    `yaml:"page_type,omitempty" json:"pageType,omitempty"`
+	Template     string    `yaml:"template,omitempty" json:"template,omitempty"`
+	Controlled   string    `yaml:"controlled,omitempty" json:"controlled,omitempty"` // default, yes, no
+	ReleasedOnly bool      `yaml:"released_only,omitempty" json:"releasedOnly,omitempty"`
+	Form         *PageForm `yaml:"form,omitempty" json:"form,omitempty"`
 
 	Links []Link    `yaml:"links,omitempty" json:"links"`
 	BOM   []BOMLine `yaml:"bom,omitempty" json:"bom"`
